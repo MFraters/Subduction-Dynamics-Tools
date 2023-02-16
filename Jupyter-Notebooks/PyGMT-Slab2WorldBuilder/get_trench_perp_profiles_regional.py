@@ -35,7 +35,180 @@ import pygmt
 import numpy as np
 import json
 from os.path import exists as file_exists
+import math
+import csv
 
+
+class Bezier:
+    def __init__(self,points):
+      self.n_points = len(points)
+      n_points = self.n_points
+      self.points = points
+      self.control_points = [[[0,0],[0,0]] for i in range(n_points-1)]
+      self.angles = [0 for i in range(n_points)]
+      angle_constrains = [0 for i in range(n_points)]
+
+      dtr = 180./math.pi
+      P1P2 = [(points[1][0]-points[0][0])*dtr,(points[1][1]-points[0][1])*dtr]
+      self.angles[0] = math.atan2(P1P2[1],P1P2[0])
+      #self.angles[0] -= math.pi*0.5
+
+      for p_i in range(1,n_points-1):
+        # first determine the angle
+        # get the average angle
+        P1P2 = [(points[p_i-1][0]-points[p_i][0])*dtr,(points[p_i-1][1]-points[p_i][1])*dtr]
+        P3P2 = [(points[p_i+1][0]-points[p_i][0])*dtr,(points[p_i+1][1]-points[p_i][1])*dtr]
+        angle_p1p2 = np.arctan2(P1P2[1],P1P2[0])
+        angle_p3p1 = np.arctan2(P3P2[1],P3P2[0])
+        average_angle = (angle_p1p2 + angle_p3p1)*0.5
+        self.angles[p_i] = average_angle
+        self.angles[p_i] -= math.pi*0.5
+
+        P1P2 = [(points[n_points-2][0]-points[n_points-1][0])*dtr,(points[n_points-2][1]-points[n_points-1][1])*dtr]
+        P2P1 = [(points[n_points-1][0]-points[n_points-2][0])*dtr,(points[n_points-1][1]-points[n_points-2][1])*dtr]
+        self.angles[n_points-1] =  np.arctan2(P1P2[1],P1P2[0])
+
+      if len(points) > 2:
+          # next determine the location of the control points
+          # the location of the control point is 1/10th p1p2 distance in the direction of the angle.
+          # make sure the angle is pointing away from the next point, e.g.
+          # the check point is on the other side of the of the line p1p2 compared to p3.
+          fraction_of_length = 0.2
+          
+          p1 = self.points[0]
+          p2 = self.points[1]
+          p3 = self.points[2]
+          length = np.sqrt((self.points[0][0]-self.points[1][0])*(self.points[0][0]-self.points[1][0])+(self.points[0][1]-self.points[1][1])*(self.points[0][1]-self.points[1][1])) # can be squared
+          self.control_points[0][0][0] = np.cos(self.angles[0])*length*fraction_of_length+p1[0]
+          self.control_points[0][0][1] = np.sin(self.angles[0])*length*fraction_of_length+p1[1]
+          self.control_points[0][1][0] = np.cos(self.angles[1])*length*fraction_of_length+p2[0]
+          self.control_points[0][1][1] = np.sin(self.angles[1])*length*fraction_of_length+p2[1]
+          
+          side_of_line_1 =  False if (p1[0] - p2[0]) * (self.control_points[0][1][1] - p1[1]) - (p1[1] - p2[1]) * (self.control_points[0][1][0] - p1[0])< 0 else True
+          side_of_line_2 =  False if (p1[0] - p2[0]) * (p3[1] - p1[1]) - (p1[1] - p2[1]) * (p3[0] - p1[0]) < 0 else True
+          if side_of_line_1 == side_of_line_2:
+              # use a 180 degree rotated angle to create this control_point
+              self.control_points[0][1][0] = cos(self.angles[1]+math.pi)*length*fraction_of_length+p2[0]
+              self.control_points[0][1][1] = sin(self.angles[1]+math.pi)*length*fraction_of_length+p2[1]
+          
+          for p_i in range(n_points-1):
+              p1 = points[p_i]
+              p2 = points[p_i+1]
+              length = np.sqrt((points[p_i][0]-points[p_i+1][0])*(points[p_i][0]-points[p_i+1][0])+(points[p_i][1]-points[p_i+1][1])*(points[p_i][1]-points[p_i+1][1])); # can be squared
+              self.control_points[p_i][0][0] = np.cos(self.angles[p_i])*length*fraction_of_length+p1[0]
+              self.control_points[p_i][0][1] = np.sin(self.angles[p_i])*length*fraction_of_length+p1[1]
+
+              side_of_line_1 =  False if (p1[0] - p2[0]) * (self.control_points[p_i-1][1][1] - p1[1]) - (p1[1] - p2[1]) * (self.control_points[p_i-1][1][0] - p1[0]) < 0 else True
+              side_of_line_2 =  False if (p1[0] - p2[0]) * (self.control_points[p_i][0][1] - p1[1]) - (p1[1] - p2[1]) * (self.control_points[p_i][0][0] - p1[0]) < 0 else True
+              if side_of_line_1 == side_of_line_2:
+                  # use a 180 degree rotated angle to create this control_point
+                  self.control_points[p_i][0][0] = np.cos(self.angles[p_i]+math.pi)*length*fraction_of_length+p1[0]
+                  self.control_points[p_i][0][1] = np.sin(self.angles[p_i]+math.pi)*length*fraction_of_length+p1[1]
+              
+
+              self.control_points[p_i][1][0] = np.cos(self.angles[p_i+1])*length*fraction_of_length+points[p_i+1][0]
+              self.control_points[p_i][1][1] = np.sin(self.angles[p_i+1])*length*fraction_of_length+points[p_i+1][1]
+
+              if p_i+1 < n_points-1:
+                p3 = points[p_i+2]
+                side_of_line_1 =  False if (p1[0] - p2[0]) * (self.control_points[p_i][1][1] - p1[1]) - (p1[1] - p2[1]) * (self.control_points[p_i][1][0] - p1[0]) < 0 else True
+                side_of_line_2 =  False if (p1[0] - p2[0]) * (p3[1] - p1[1]) - (p1[1] - p2[1]) * (p3[0] - p1[0])< 0 else True
+                if side_of_line_1 == side_of_line_2:
+                    # use a 180 degree rotated angle to create this control_point
+                    self.control_points[p_i][1][0] = math.cos(self.angles[p_i+1]+math.pi)*length*fraction_of_length+p2[0]
+                    self.control_points[p_i][1][1] = math.sin(self.angles[p_i+1]+math.pi)*length*fraction_of_length+p2[1]
+
+      print("points: ", self.points, ", control points: ", self.control_points, ", angles: ", self.angles)
+                  
+                
+        
+      
+    def get_point(self, x):
+          idx = min(int(max( 0, int(x))),self.n_points-1)
+          h = x-idx
+          if idx == self.n_points-1:
+            idx = idx-1
+            h = 1.0
+          return [(1-h)*(1-h)*(1-h)*self.points[idx][0] + 3*(1-h)*(1-h)*h*self.control_points[idx][0][0] + 3.*(1-h)*h*h*self.control_points[idx][1][0]+h*h*h*self.points[idx+1][0],(1-h)*(1-h)*(1-h)*self.points[idx][1] + 3*(1-h)*(1-h)*h*self.control_points[idx][0][1] + 3.*(1-h)*h*h*self.control_points[idx][1][1]+h*h*h*self.points[idx+1][1]]
+        #idx = int(x)
+        #h = x-idx
+        #print("idx = ", idx, ", n_points=", self.n_points)
+        #return [(1-h)*(1-h)*(1-h)*self.points[idx][0] + 3*(1-h)*(1-h)*h*self.control_points[idx][0][0] + 3.*(1-h)*h*h*self.control_points[idx][1][0]+h*h*h*self.points[idx+1][0],(1-h)*(1-h)*(1-h)*self.points[idx][1] + 3*(1-h)*(1-h)*h*self.control_points[idx][0][1] + 3.*(1-h)*h*h*self.control_points[idx][1][1]+h*h*h*self.points[idx+1][1]]
+
+      
+    def get_derivative(self, x):
+        idx = min(int(max( 0, int(x))),self.n_points-1)
+        h = x-idx
+        if idx == self.n_points-1:
+          idx = idx-1
+          h = 1.0
+        return [self.points[idx][0]*((6.-3.*h)*h-3.) + self.control_points[idx][0][0]*(h*(9*h-12)+3) + self.control_points[idx][1][0]*(6.-9.*h)*h + self.points[idx+1][0]*3.*h*h,self.points[idx][1]*((6.-3.*h)*h-3.) + self.control_points[idx][0][1]*(h*(9*h-12)+3) + self.control_points[idx][1][1]*(6.-9.*h)*h + self.points[idx+1][1]*3.*h*h]
+    
+        
+
+class Spline:
+    def __init__(self,y,monotone):
+      #print("----> make spline: y=",y)
+      n = len(y)
+      self.mx_size_min = n
+      self.m = [[0,0,0,0] for i in range(n)]
+      
+      for i in range(n):
+          self.m[i][3] = y[i]
+
+      self.m[0][2] = 0
+
+      for i in range(n-2):
+          m0 = y[i+1]-y[i]
+          m1 =  y[i+2]-y[i+1]
+
+          if monotone:
+            if m0 * m1 <= 0:
+                self.m[i+1][2] = 0
+            else:
+              self.m[i+1][2] = 2*m0*m1/(m0+m1)
+          else:
+            self.m[i+1][2] = 2*m0*m1/(m0+m1)
+            
+      self.m[n-1][2] =  y[n-1]-y[n-2]
+
+      m0 = 0
+      for i in range(n-1):
+          c1 = self.m[i][2]
+          m0 = y[i+1]-y[i]
+
+          common0 = c1 + self.m[i+1][2] - m0 - m0
+          self.m[i][1] = (m0 - c1 - common0)
+          self.m[i][0] = common0
+      #print(self.m)
+      
+    def get_point(self, x):
+          if x >= 0 and x <= self.mx_size_min:
+              idx = int(x)
+              h = x-idx
+              return ((self.m[idx][0]*h + self.m[idx][1])*h + self.m[idx][2])*h + self.m[idx][3]
+            
+          idx = min(int(max( int(x), int(x)),self.mx_size_min))
+          h = x-idx
+          return (self.m[idx][1]*h + self.m[idx][2])*h + self.m[idx][3]
+      
+    def get_derivative(self, x):
+          if x > 0 and x <= self.mx_size_min:
+              idx = int(x)
+              h = x-idx
+              #print("A: idx:", idx, ", h: ", h, ", m:", self.m[idx])
+              return ((self.m[idx][0]*h + self.m[idx][1])*h + self.m[idx][2])
+            
+          if x == 0:
+            #print("C:  m:", self.m[1], ", m0: ", self.m[0])
+            return (self.m[1][3]-self.m[0][3])
+          idx = min((max( int(x), int(x)),self.mx_size_min))
+          h = x-idx
+          #print("B: idx:", idx, ", h: ", h, ", m:", self.m[idx])
+          return (self.m[idx][1]*h + self.m[idx][2])
+    
+        
+        
 # %%
 # For plot read in topography for basemap and choose fonts
 pygmt.config(FONT='8p,Times-Roman,black')
@@ -260,7 +433,7 @@ proj1 = 'B' + str(clon) + '/' + str(clat) + '/' + str(lat1) + '/' + str(lat2) + 
 fig = pygmt.Figure()
 title = slab2bird[loc1]['Slab'] + ' (' + str(prof_spacing)  + ' km'+ ')'
 print(title)
-fig.basemap(region=region1, projection=proj1, frame=["af", f'WSne+t"{title}"'])
+fig.basemap(region=region1, projection=proj1, frame=["a5f1g1", f'WSne+t"{title}"'])
 
 # Add base-map data if desired.
 if add_topo_grid == True:
@@ -294,6 +467,7 @@ fig.coast(shorelines="1/0.5p,black",resolution="i")
 data = np.loadtxt(trenchfile)
 fig.plot(x=data[:,0],y=data[:,1],pen='2p,100/170/220')
 
+
 pen_prof = "1p,blue"
 if add_topo_grid == True:
     font_profnum = "4p,Times-Roman,white"
@@ -305,11 +479,13 @@ prof_length = 15 # deg,
 prof_ds = 0.1 # deg, sampling along cross profile
 
 print('Plotting', n, 'profiles')
+#print("trench_data before:", trench_data)
 for i in range(n):
-    trench_data[i,3] = 122 #122 #114
+    #trench_data[i,3] = 122 #122 #114
     prof_points = pygmt.project(center=[trench_data[i,0], trench_data[i,1]], azimuth=trench_data[i,3], 
                                 length=[0, prof_length], generate=prof_ds, unit=False)
 
+#print("trench_data after:", trench_data)
     #fig.plot(x=prof_points.r, y=prof_points.s, pen="1p,blue")  
     #fig.text(text=str(i), x=lontext[i],y=lattext[i], font=font_profnum) 
 
@@ -325,7 +501,18 @@ for i in range(n):
 # This is probably fine since the ridge is so close to the trench and the slab has to be so much oder than what has been
 # subducted, that following the isodepth lines it the best thing I can do here.
 # The boundaries are set to capature as much of the slab as possible.
-coord_azimuth_list = [[1,114],[10,115],[20,116],[24,116],[34,122],[42,122],[58,122],[76,122],[77,114],[78,109],[79,106],[80,96],[81,91],[82,84],[84,75],[94,80],[104,89]]
+#coord_azimuth_list = [[1,114],[10,115],[20,116],[24,116],[34,122],[42,122],[58,122],[76,122],[77,114],[78,109],[79,106],[80,96],[81,91],[82,84],[84,75],[94,80],[104,89],[120,90]]
+
+# the azimuth of the list below is determined byt always trying to be perpendicular to the trench, defined by a spline through
+# the chosen points
+coord_points = [3,5,20,40,50,60,70,95,120]
+coord_azimuth_list = []
+coord_points_len = len(coord_points)
+print("-->>> coord_points_len = ", coord_points_len)
+for coord_point in coord_points:
+  coord_azimuth_list.append([coord_point,90.])
+
+print(coord_azimuth_list)
 
 ## write header
 outfile = loc1 + '_' + str(prof_spacing) + '_wb_slab_segments.json'
@@ -336,7 +523,20 @@ line = """    {"model":"subducting plate", "name":"Subducting plate", "dip point
      ["""
 file_handle.write(line)
 
+x_list = []
+y_list = []
+point_list = []
+
+#with open (trenchfile, mode='r') as file:
+#    reader = csv.DictReader(file)
+#    for row in reader
+#      row[0]-360
+
 for ca_i in range(len(coord_azimuth_list)):
+    wbnum = coord_azimuth_list[ca_i][0]
+    point_list.append([trench_data[wbnum,0],trench_data[wbnum,1]]);
+    x_list.append(trench_data[wbnum,0])
+    y_list.append(trench_data[wbnum,1])
     wbnum = coord_azimuth_list[ca_i][0]
     if ca_i == 0:
         line = "[" + "{:.3f}".format(trench_data[wbnum,0]-360.) + ',' + "{:.3f}".format(trench_data[wbnum,1]) + "]"
@@ -347,11 +547,56 @@ line = "],\n"
 file_handle.write(line)
 
 
+print(" point list = ", point_list)
+# plot the trench spline of the figure
+## create the spline
+monotone = True #True
+spline_x = Spline(x_list,monotone)
+spline_y = Spline(y_list,monotone)
+bezier_curve = Bezier(point_list)
+
+#print("x_list:", x_list)
+
+spline_coords_x = []
+spline_coords_y = []
+for x_i in range((len(coord_azimuth_list)-1)*10+1):
+    spline_coords_x.append(bezier_curve.get_point(x_i/10.)[0])
+    spline_coords_y.append(bezier_curve.get_point(x_i/10.)[1])
+    #spline_coords_x.append(spline_x.get_point(x_i/10.))
+    #spline_coords_y.append(spline_y.get_point(x_i/10.))
+    #print(x_i/10.)
+
+## plot the spline
+#print("---------->>> data[:,0]:", data[:,0])
+#print("---------->>> spline_coords_x:", spline_coords_x)
+#print("---------->>> data[:,1]:", data[:,1])
+#print("---------->>> spline_coords_y:", spline_coords_y)
+fig.plot(x=spline_coords_x,y=spline_coords_y,pen='0.5p,orange')
+
+# Correct the azimuths to be perpendicular to the spline
 for ca_i in range(len(coord_azimuth_list)):
-    wbnum = coord_azimuth_list[ca_i][0] #38 #int(input('Choose profile number to use for WorldBuilder Input: '))
+    derivative_x = bezier_curve.get_derivative(ca_i)[0]
+    derivative_y = bezier_curve.get_derivative(ca_i)[1]
+    #derivative_x = spline_x.get_derivative(ca_i)
+    #derivative_y = spline_y.get_derivative(ca_i)
+    azimuth = math.atan2(derivative_x,derivative_y)
+    #print(ca_i, " az = ", azimuth*180/math.pi+90., ":", coord_azimuth_list[ca_i][1], ", deriv:", derivative_x, ":", derivative_y)
+    coord_azimuth_list[ca_i][1] = azimuth*180/math.pi+90.
 
-    az0 = coord_azimuth_list[ca_i][1] #trench_data[wbnum,3]
+#for ca_i in range(len(coord_azimuth_list)):
+#    print("coord_azimuth_list[",ca_i,"][1] = ", coord_azimuth_list[ca_i][1])
 
+for ca_i in range(len(coord_azimuth_list)):
+    ca_i_used = ca_i
+    if ca_i == coord_points_len-2:
+      ca_i_used = coord_points_len-3
+    if ca_i == coord_points_len-1:
+      ca_i_used = coord_points_len-3
+    wbnum = coord_azimuth_list[ca_i_used][0] #38 #int(input('Choose profile number to use for WorldBuilder Input: '))
+
+    az0 = coord_azimuth_list[ca_i_used][1] #trench_data[wbnum,3]
+
+    print("center=", [trench_data[i,0], trench_data[i,1]], ", az= ", az0, ", length=", [0, prof_length], ", generate=", prof_ds)
     prof_points = pygmt.project(center=[trench_data[i,0], trench_data[i,1]], azimuth=az0, 
                                 length=[0, prof_length], generate=prof_ds, unit=False)
     #print('Profile information (start-lon, start-lat, azimuth): ', trench_data[wbnum,0], trench_data[wbnum,1], az0)
@@ -404,8 +649,12 @@ for ca_i in range(len(coord_azimuth_list)):
 
     # Show the chosen profile and the trench location on the figure
     fig.plot(x=prof_tmp[:,0],y=prof_tmp[:,1],pen='1p,green')
-    fig.plot(x=wbprof[:,0],y=wbprof[:,1],pen='1p,red')
-    fig.plot(x=wbprof[0,0],y=wbprof[0,1],pen='1p,magenta',style='c0.05c')
+    print("p:",p)
+    p_len = p.size
+    if p_len > 1:
+      print("A: ", p_len)
+      fig.plot(x=wbprof[:,0],y=wbprof[:,1],pen='1p,red')
+      fig.plot(x=wbprof[0,0],y=wbprof[0,1],pen='1p,magenta',style='c0.05c')
     font_profnum = "3p,Times-Roman,green"
     fig.text(text=str(wbnum), x=lonstart,y=latstart, font=font_profnum) 
 #fig.show()
@@ -415,9 +664,9 @@ for ca_i in range(len(coord_azimuth_list)):
 
 
 #for ca_i in range(len(coord_azimuth_list)): #for coord_az in coord_azimuth_list:
-    wbnum = coord_azimuth_list[ca_i][0] #38 #int(input('Choose profile number to use for WorldBuilder Input: '))
+    wbnum = coord_azimuth_list[ca_i_used][0] #38 #int(input('Choose profile number to use for WorldBuilder Input: '))
 
-    az0 = coord_azimuth_list[ca_i][1] #trench_data[wbnum,3]
+    az0 = coord_azimuth_list[ca_i_used][1] #trench_data[wbnum,3]
 
     prof_array = prof_points.to_numpy()
     p = np.where(prof_array[:,0]< 0)
@@ -472,37 +721,40 @@ for ca_i in range(len(coord_azimuth_list)):
 
     # Need to make these one longer than the profile in order to get a point
     # at the trench with a dist = 0, depth = 0 and dip = 0
-    p,q = wbprof.shape
+    if p_len > 1:
+      p_len,q = wbprof.shape
 
-    d = np.zeros((p+1,))  # distance in degrees
-    depth = np.zeros((p+1,))
-    dip = np.zeros((p+1,))
+    d = np.zeros((p_len+1,))  # distance in degrees
+    depth = np.zeros((p_len+1,))
+    dip = np.zeros((p_len+1,))
 
-    print("p=", p, )
+    print("p=", p_len, )
     # if there are p+1 points, there at p segments in between
-    C = np.zeros((p,))
-    theta = np.zeros((p,))
-    R = np.zeros((p,))
-    S = np.zeros((p,))
+    C = np.zeros((p_len,))
+    theta = np.zeros((p_len,))
+    R = np.zeros((p_len,))
+    S = np.zeros((p_len,))
 
     # Format of wbprof: lon, lat, distance (deg), - depth (km), dip (deg)
-    d[1:p+1] = np.abs(wbprof[:,2])    # distance in degrees along profile
+    if p_len > 1:
+      d[1:p_len+1] = np.abs(wbprof[:,2])    # distance in degrees along profile
 
     # need positive depths and shift relative to median bethymetry.
     # this puts trench at depth of 0 km.
     km2m = 1000  # m per km
     print('Adjusting depths by:', bath_median/km2m  , ' km')
-    depth[1:p+1] = np.abs(wbprof[:,3]) - bath_median/km2m   
-    dip[1:p+1] = wbprof[:,4]
+    if p_len > 1:
+      depth[1:p_len+1] = np.abs(wbprof[:,3]) - bath_median/km2m   
+      dip[1:p_len+1] = wbprof[:,4]
 
     # Get distance from 1st point in profile to the trench at depth = 0
     # this only depths assuming a straight line for this one segment.
-    dy = depth[p-1]-depth[p]
+    dy = depth[p_len-1]-depth[p_len]
     surf_dist = np.abs(np.arcsin(dy/Re)/d2r)  # arc distance
 
     # adjust distances so 0 is at the trench (depth = 0)
     print('Adjusting distances by:', surf_dist, 'degrees')
-    d[1:p+1] = d[1:p+1] + surf_dist
+    d[1:p_len+1] = d[1:p_len+1] + surf_dist
 
     # a. Calculate radius at point i (Re) and point i+1 (Re-depth)
     r = Re - depth  # km
@@ -523,8 +775,8 @@ for ca_i in range(len(coord_azimuth_list)):
     #    C = sqrt( (x(i+1)- x(i))^2 + (y(i+1)- y(i))^2  )
 
     # this will be a like a loop
-    n = range(0,p)
-    m = range(1,p+1)
+    n = range(0,p_len)
+    m = range(1,p_len+1)
     C[n] = np.sqrt( (x[m] - x[n])**2 + (y[m] - y[n])**2)  # km
 
     # d. Calculate the angle between point i and i+1
@@ -556,7 +808,7 @@ for ca_i in range(len(coord_azimuth_list)):
     #           ],
     thickness = 300  # km  slab thickness
     top_trucation = -100
-    number_of_segments=57
+    number_of_segments=50 #57
 
     # Output file for slab segments in json format.
     str_wbnum = str(wbnum).zfill(3)
@@ -574,54 +826,64 @@ for ca_i in range(len(coord_azimuth_list)):
         line = '     "segments":[\n'
         file_handle.write(line)
 
-        for i in range(p-1):
-            arclen = "{:.3f}".format(S[i]) + 'e03'   # in meters
+        for si in range(p_len-1):
+            arclen = "{:.3f}".format(S[si]) + 'e03'   # in meters
             thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-            dipn = "{:.3f}".format(dip[i+1])
-            dipm = "{:.3f}".format(dip[i])
+            dipn = "{:.3f}".format(dip[si+1])
+            dipm = "{:.3f}".format(dip[si])
             top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
-            dep = "{:.3f}".format(depth[i]) + 'km' # in meters
+            dep = "{:.3f}".format(depth[si]) + 'km' # in meters
     
             #    line = '     // depth = ' + dep + '\n'
             #    file_handle.write(line)
             line = '       {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
+            if ca_i == coord_points_len-2:
+              line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+            if ca_i == coord_points_len-1:
+              line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
             file_handle.write(line)
-            if depth[i] < 40.:
-                line = """,\n        "composition models":[{"model":"uniform", "compositions":[1,3], "fractions":[1,1.5], "max distance slab top":7.5e3},
+            if depth[si] < 30.:
+                line = """,\n        "composition models":[{"model":"uniform", "compositions":[0,3], "fractions":[1,2.0], "min distance slab top":-15e3, "max distance slab top":0},
+                              {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                               {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                               {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
                 file_handle.write(line)
-            elif depth[i] < 120:
-                strain_number = 1.5*(1.-((depth[i]-40.)/80.))
+            elif depth[si] < 50:
+                strain_number = 2.0*(1.-((depth[si]-30.)/20.))
                 strain = "{:.3f}".format(strain_number)
-                line = """,\n        "composition models":[{"model":"uniform", "compositions":[1,3], "fractions":[1,""" + strain + """], "max distance slab top":7.5e3},
+                line = """,\n        "composition models":[{"model":"uniform", "compositions":[3], "fractions":[2.0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                              {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                               {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                               {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
                 file_handle.write(line)
-            line = '}, \n'
+            line = '},  // depth=' + dep + '\n'
             file_handle.write(line)
     
-        arclen = "{:.3f}".format(S[p-1]) + 'e03'   # in meters
+        arclen = "{:.3f}".format(S[p_len-1]) + 'e03'   # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        dipn = "{:.3f}".format(dip[p])
-        dipm = "{:.3f}".format(dip[p-1])
+        dipn = "{:.3f}".format(dip[p_len])
+        dipm = "{:.3f}".format(dip[p_len-1])
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
-        dep = "{:.3f}".format(depth[p]) + 'km' # in meters
+        dep = "{:.3f}".format(depth[p_len]) + 'km' # in meters
     
         #line = '     // depth = ' + dep + '\n'
         #file_handle.write(line)
         line = '       {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']}'
+        if ca_i == coord_points_len-2:
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+        if ca_i == coord_points_len-1:
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
         file_handle.write(line)
     
         ## add lines at the end to make sure all coordinates have the same number of segments
-        if number_of_segments > p:
-            for i in range(number_of_segments-p):
-                line = ',\n        {"length":0.0, "thickness":[0.0], "top truncation":[0.0], "angle":[0.0]}'
+        if number_of_segments > p_len:
+            for si in range(number_of_segments-p_len):
+                line = ',\n        {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']}'
                 file_handle.write(line)
-        if number_of_segments < p:
-            line = ',\n     ERROR: not enough segments!!!'
+        if number_of_segments < p_len:
+            line = ',\n     ERROR: not enough segments!!! Manually increase number_of_segments from ' + "{:.3f}".format(number_of_segments) + " to " + "{:.3f}".format(p_len)
             file_handle.write(line)
-            assert False, "ERROR: not enough segments!!!"
+            assert False, "ERROR: not enough segments!!! Manually increase number_of_segments from " + "{:.3f}".format(number_of_segments) + " to " + "{:.3f}".format(p_len)
         line = '\n     ],  \n     "sections":['
         file_handle.write(line)	
         line = '\n       {"coordinate":' + "{}".format(ca_i) + ', "segments":[\n'
@@ -629,85 +891,172 @@ for ca_i in range(len(coord_azimuth_list)):
         line = ',\n       {"coordinate":' + "{}".format(ca_i) + ', "segments":[\n'
     file_handle.write(line)	
     
-    for i in range(p-2):
-        arclen = "{:.3f}".format(S[i]) + 'e03'   # in meters
+    for si in range(p_len-2):
+        arclen = "{:.3f}".format(S[si]) + 'e03'   # in meters
+        if ca_i == coord_points_len-2:
+            arclen = "{:.3f}".format(S[si]*0.75) + 'e03'
+        if ca_i == coord_points_len-1:
+        #  if si < 3:
+        #    arclen = "{:.3f}".format(S[si]) + 'e03'   # in meters
+        #  else:
+        #    arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
+          arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        dipn = "{:.3f}".format(dip[i+1])
-        dipm = "{:.3f}".format(dip[i])
+        dipn = "{:.3f}".format(dip[si+1])
+        dipm = "{:.3f}".format(dip[si])
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
-        dep = "{:.3f}".format(depth[i]) + 'km' # in meters
+        dep = "{:.3f}".format(depth[si]) + 'km' # in meters
 
         #    line = '     // depth = ' + dep + '\n'
         #    file_handle.write(line)
         line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
+        if ca_i == coord_points_len-2:
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+        if ca_i == coord_points_len-1:
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
         file_handle.write(line)
-        if depth[i] < 40.:
-            line = """,\n          "composition models":[{"model":"uniform", "compositions":[1,3], "fractions":[1,1.5], "max distance slab top":7.5e3},
+        if depth[si] < 30.:
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[0,3], "fractions":[1,2.0], "min distance slab top":-15e3, "max distance slab top":0},
+                                {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
             file_handle.write(line)
-        elif depth[i] < 120:
-            strain_number = 1.5*(1.-((depth[i]-40.)/80.))
+        elif depth[si] < 65:
+            strain_number = 2.0*(1.-((depth[si]-30.)/20.))
             strain = "{:.3f}".format(strain_number)
-            line = """,\n          "composition models":[{"model":"uniform", "compositions":[1,3], "fractions":[1,""" + strain + """], "max distance slab top":7.5e3},
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[2.0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                                {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
             file_handle.write(line)
-        line = '}, \n'
+        elif ca_i == coord_points_len-2 and depth[si] < 65:
+            strain_number = 2.0*(1.-((depth[si]-30.)/20.))
+            strain = "{:.3f}".format(strain_number)
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[2.0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                                {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
+                                {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
+                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+            file_handle.write(line)
+        elif ca_i == coord_points_len-1:
+            strain_number = 2.0*(1.-((depth[si]-30.)/20.))
+            strain = "{:.3f}".format(strain_number)
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[2.0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                                {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
+                                {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
+                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+            file_handle.write(line)
+        line = '},  // depth=' + dep + '\n'
         file_handle.write(line)
 
-    # write the second to last line
+    if p_len > 1:
+        # write the second to last line, use the third to last entries.
+        arclen = "{:.3f}".format(S[p_len-3]) + 'e03'   # in meters
+        if ca_i == coord_points_len-1:
+            arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
+        thk = "{:.1f}".format(thickness) + 'e03' # in meteres
+        dipn = "{:.3f}".format(dip[p_len-2])
+        dipm = "{:.3f}".format(dip[p_len-3])
+        top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
+        dep = "{:.3f}".format(depth[p_len-2]) + 'km' # in meters
 
-    arclen = "{:.3f}".format(S[p-2]) + 'e03'   # in meters
-    thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-    dipn = "{:.3f}".format(dip[p-1])
-    dipm = "{:.3f}".format(dip[p-2])
-    top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
-    dep = "{:.3f}".format(depth[p-1]) + 'km' # in meters
-
-    #line = '     // depth = ' + dep + '\n'
-    #file_handle.write(line)
-    line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
-    file_handle.write(line)
-    line = """,\n          "composition models":[{"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":3.75e3},
+        #line = '     // depth = ' + dep + '\n'
+        #file_handle.write(line)
+        line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
+        if ca_i == coord_points_len-2:
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+        if ca_i == coord_points_len-1:
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+        file_handle.write(line)
+        if ca_i == coord_points_len-1:
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":7.5e3},
+                                {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
+                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+        else:
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":3.75e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":3.75e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
-    file_handle.write(line)
-    line = '}, \n'
-    file_handle.write(line)
+        file_handle.write(line)
+        line = '},  // depth=' + dep + '\n'
+        file_handle.write(line)
 
-    # write the last line
+        # write the last line
+        arclen = "{:.3f}".format(S[p_len-1]) + 'e03'   # in meters
+        if ca_i == coord_points_len-1:
+            arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
+        thk = "{:.1f}".format(thickness) + 'e03' # in meteres
+        dipn = "{:.3f}".format(dip[p_len])
+        dipm = "{:.3f}".format(dip[p_len-1])
+        top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
+        dep = "{:.3f}".format(depth[p_len]) + 'km' # in meters
 
-    arclen = "{:.3f}".format(S[p-1]) + 'e03'   # in meters
-    thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-    dipn = "{:.3f}".format(dip[p])
-    dipm = "{:.3f}".format(dip[p-1])
-    top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
-    dep = "{:.3f}".format(depth[p]) + 'km' # in meters
-
-    #line = '     // depth = ' + dep + '\n'
-    #file_handle.write(line)
-    line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
-    file_handle.write(line)
-    line = """,\n          "composition models":[{"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":0},
+        #line = '     // depth = ' + dep + '\n'
+        #file_handle.write(line)
+        line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
+        if ca_i == coord_points_len-2:
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+        if ca_i == coord_points_len-1:
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+        file_handle.write(line)
+        if ca_i == coord_points_len-1:
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,2.0], "max distance slab top":7.5e3},
+                                {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
+                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+        else:
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":0},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
-    file_handle.write(line)
-    line = '}'
-    file_handle.write(line)
+        file_handle.write(line)
+        line = '}'
+        file_handle.write(line)
 
     ## add lines at the end to make sure all coordinates have the same number of segments
-    if number_of_segments > p:
-        for i in range(number_of_segments-p):
-            if i == number_of_segments-p-1:
-                line = ',\n         {"length":0.0, "thickness":[0.0], "top truncation":[0.0], "angle":[0.0]} // deepest point: ' + dep
+    if number_of_segments > p_len:
+        for i in range(number_of_segments-p_len):
+            #print("range(number_of_segments-p) = ", number_of_segments, ", i = ", i)
+            if ca_i == coord_points_len-1:
+                line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+                file_handle.write(line)
+                line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,2.0], "max distance slab top":0e3},
+                                {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0e3, "max distance slab top":30e3},
+                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+                file_handle.write(line)
+                if i == number_of_segments-p_len-1:
+                    line = "} // deepest point: ' + dep"
+                else:
+                    line = '}'
+                file_handle.write(line)
             else:
-                line = ',\n         {"length":0.0, "thickness":[0.0], "top truncation":[0.0], "angle":[0.0]}'
-            file_handle.write(line)
-    if number_of_segments < p:
-        line = ',\n     ERROR: not enough segments!!!'
+              if i == number_of_segments-p_len-1:
+                if ca_i == coord_points_len-2:
+                  line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+                else:
+                  line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
+              elif p_len == 0 and i == 0:
+                  line = '         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
+              else:
+                if ca_i == coord_points_len-2:
+                  line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+                else:
+                  line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
+              file_handle.write(line)
+              line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":0},
+                                {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0, "max distance slab top":30e3},
+                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+              file_handle.write(line)
+              line = '}'
+              file_handle.write(line)
+        line = ' // deepest point: ' + dep
         file_handle.write(line)
-        assert False, "ERROR: not enough segments!!!"
+    if number_of_segments < p_len:
+        line = ',\n     ERROR: not enough segments!!! Manually increase number_of_segments from ' + "{:.3f}".format(number_of_segments) + " to " + "{:.3f}".format(p_len)
+        file_handle.write(line)
+        assert False, "ERROR: not enough segments!!! Manually increase number_of_segments from " + "{:.3f}".format(number_of_segments) + " to " + "{:.3f}".format(p_len)
     line = '\n        ] }'
     file_handle.write(line)	
 
@@ -722,6 +1071,12 @@ for ca_i in range(len(coord_azimuth_list)):
 
 line = '\n    ]'
 file_handle.write(line)	
+
+fig.basemap(region=region1, projection=proj1, frame=["a5f1g1", f'WSne+t"{title}"'])
+#fig.show()
+#pngfile = outfile = slab2bird[loc1]['Slab'] + '_' + str(prof_spacing) + 'k_' + str(wbnum) + '.png'
+pngfile = outfile = slab2bird[loc1]['Slab'] + '_' + str(prof_spacing) + '_v3.png'
+fig.savefig(pngfile,dpi=600)
 
 #line = '\n  }'
 #file_handle.write(line)	
