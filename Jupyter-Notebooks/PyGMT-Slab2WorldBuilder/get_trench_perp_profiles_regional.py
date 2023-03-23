@@ -821,6 +821,8 @@ for ca_i in range(len(coord_azimuth_list)):
     #line = ' { "segments":[ \n'
     #file_handle.write(line)
 
+    extra_dip = 1.0
+
     if ca_i == 0:
         ## write segements part first
         line = '     "segments":[\n'
@@ -838,20 +840,20 @@ for ca_i in range(len(coord_azimuth_list)):
             #    file_handle.write(line)
             line = '       {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
             if ca_i == coord_points_len-2:
-              line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+              line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
             if ca_i == coord_points_len-1:
-              line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+              line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
             file_handle.write(line)
             if depth[si] < 30.:
-                line = """,\n        "composition models":[{"model":"uniform", "compositions":[0,3], "fractions":[1,2.0], "min distance slab top":-15e3, "max distance slab top":0},
+                line = """,\n        "composition models":[{"model":"smooth", "compositions":[0,3], "top fractions":[1,0], "bottom fractions":[1,2.0], "min distance slab top":-30e3, "max distance slab top":0},
                               {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                               {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                               {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
                 file_handle.write(line)
-            elif depth[si] < 50:
+            elif depth[si] < 82.5:
                 strain_number = 2.0*(1.-((depth[si]-30.)/20.))
                 strain = "{:.3f}".format(strain_number)
-                line = """,\n        "composition models":[{"model":"uniform", "compositions":[3], "fractions":[2.0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                line = """,\n        "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[2.0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
                               {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                               {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                               {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
@@ -870,9 +872,9 @@ for ca_i in range(len(coord_azimuth_list)):
         #file_handle.write(line)
         line = '       {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']}'
         if ca_i == coord_points_len-2:
-          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
         if ca_i == coord_points_len-1:
-          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
         file_handle.write(line)
     
         ## add lines at the end to make sure all coordinates have the same number of segments
@@ -911,28 +913,28 @@ for ca_i in range(len(coord_azimuth_list)):
         #    file_handle.write(line)
         line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
         if ca_i == coord_points_len-2:
-          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
         if ca_i == coord_points_len-1:
-          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
         file_handle.write(line)
         if depth[si] < 30.:
-            line = """,\n          "composition models":[{"model":"uniform", "compositions":[0,3], "fractions":[1,2.0], "min distance slab top":-15e3, "max distance slab top":0},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[0,3], "top fractions":[1,0], "bottom fractions":[1,2.0], "min distance slab top":-30e3, "max distance slab top":0},
                                 {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
             file_handle.write(line)
-        elif depth[si] < 65:
+        elif depth[si] < 82.5:
             strain_number = 2.0*(1.-((depth[si]-30.)/20.))
             strain = "{:.3f}".format(strain_number)
-            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[2.0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[2.0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
                                 {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
             file_handle.write(line)
-        elif ca_i == coord_points_len-2 and depth[si] < 65:
+        elif ca_i == coord_points_len-2 and depth[si] < 82.5:
             strain_number = 2.0*(1.-((depth[si]-30.)/20.))
             strain = "{:.3f}".format(strain_number)
-            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[2.0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[2.0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
                                 {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
@@ -940,7 +942,7 @@ for ca_i in range(len(coord_azimuth_list)):
         elif ca_i == coord_points_len-1:
             strain_number = 2.0*(1.-((depth[si]-30.)/20.))
             strain = "{:.3f}".format(strain_number)
-            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[2.0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[2.0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
                                 {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
@@ -963,17 +965,17 @@ for ca_i in range(len(coord_azimuth_list)):
         #file_handle.write(line)
         line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
         if ca_i == coord_points_len-2:
-          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
         if ca_i == coord_points_len-1:
-          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
         file_handle.write(line)
         if ca_i == coord_points_len-1:
-            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
                                 {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
         else:
-            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
                                 {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":3.75e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":3.75e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
@@ -995,17 +997,17 @@ for ca_i in range(len(coord_azimuth_list)):
         #file_handle.write(line)
         line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
         if ca_i == coord_points_len-2:
-          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
         if ca_i == coord_points_len-1:
-          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+          line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
         file_handle.write(line)
         if ca_i == coord_points_len-1:
-            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
                                 {"model":"uniform", "compositions":[1,3],  "fractions":[1,2.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
         else:
-            line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
                                 {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":0},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
@@ -1018,9 +1020,9 @@ for ca_i in range(len(coord_azimuth_list)):
         for i in range(number_of_segments-p_len):
             #print("range(number_of_segments-p) = ", number_of_segments, ", i = ", i)
             if ca_i == coord_points_len-1:
-                line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*1.5,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+                line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(min(dip[si]*extra_dip,90.0)) + ',' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
                 file_handle.write(line)
-                line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+                line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
                                 {"model":"uniform", "compositions":[1,3],  "fractions":[1,2.0], "max distance slab top":0e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
@@ -1033,18 +1035,18 @@ for ca_i in range(len(coord_azimuth_list)):
             else:
               if i == number_of_segments-p_len-1:
                 if ca_i == coord_points_len-2:
-                  line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+                  line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
                 else:
                   line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
               elif p_len == 0 and i == 0:
                   line = '         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
               else:
                 if ca_i == coord_points_len-2:
-                  line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + "{:.3f}".format(min(dip[si+1]*1.5,90.0)) + ']'
+                  line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + "{:.3f}".format(min(dip[si+1]*extra_dip,90.0)) + ']'
                 else:
                   line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
               file_handle.write(line)
-              line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "fractions":[0], "min distance slab top":-15e3, "max distance slab top":0, "operation":"only replace defined"},
+              line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
                                 {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":0},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
