@@ -820,6 +820,18 @@ for ca_i in range(len(coord_azimuth_list)):
     #line = ' { "coordinates":[[' + "{:.3f}".format(trench_data[wbnum,0]) + ',' + "{:.3f}".format(trench_data[wbnum,1]) + ']],\n   "segments":[ \n'
     #line = ' { "segments":[ \n'
     #file_handle.write(line)
+    split_slab = True
+    split_slab_coord = 5
+    split_slab_depth = 120
+    slab_extra_tip_length = 75
+    slab_add_extra_length = True #controls whether to add extra length near the end of the slab. Does not influence the slab_extra_tip_length
+    set_slab_extra_length_angle = True
+    slab_extra_length_angle = 50
+    slab_extra_length_till_depth = 660-150
+    shallow_slab_tip_dip = True
+    replace_defined_only = "" #""", "operation":"replace defined only" """
+    trench_initial_strain_composition = "5"
+    trench_initial_strain = "1.00"
 
     if ca_i == 0:
         ## write segements part first
@@ -828,18 +840,20 @@ for ca_i in range(len(coord_azimuth_list)):
 
         for si in range(p_len-1):
             arclen = "{:.3f}".format(S[si]) + 'e03'   # in meters
-            thk = "{:.1f}".format(thickness) + 'e03' # in meteres
             dipn = "{:.3f}".format(dip[si+1])
             dipm = "{:.3f}".format(dip[si])
             top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
             dep = "{:.3f}".format(depth[si]) + 'km' # in meters
+            thk = "{:.1f}".format(thickness) + 'e03' # in meteres
+            if ca_i == split_slab_coord and split_slab == True and depth[si] > split_slab_depth:
+                thk = "{:.1f}".format(0.0) + 'e03' # in meteres
     
             #    line = '     // depth = ' + dep + '\n'
             #    file_handle.write(line)
             line = '       {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
             file_handle.write(line)
             if depth[si] < 30.:
-                line = """,\n        "composition models":[{"model":"smooth", "compositions":[0,3], "top fractions":[1,0], "bottom fractions":[1,2.0], "min distance slab top":-30e3, "max distance slab top":0},
+                line = """,\n        "composition models":[{"model":"smooth", "compositions":[0,""" + trench_initial_strain_composition + """], "top fractions":[1,0], "bottom fractions":[1,""" + trench_initial_strain + """], "min distance slab top":-30e3, "max distance slab top":0},
                               {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                               {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                               {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
@@ -847,7 +861,7 @@ for ca_i in range(len(coord_azimuth_list)):
             elif depth[si] < 82.5:
                 strain_number = 2.0*(1.-((depth[si]-30.)/20.))
                 strain = "{:.3f}".format(strain_number)
-                line = """,\n        "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[2.0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
+                line = """,\n        "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[""" + trench_initial_strain + """], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
                               {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
                               {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                               {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
@@ -861,6 +875,8 @@ for ca_i in range(len(coord_azimuth_list)):
         dipm = "{:.3f}".format(dip[p_len-1])
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len]) + 'km' # in meters
+        if ca_i == split_slab_coord and split_slab == True and depth[p_len] > split_slab_depth:
+            thk = "{:.1f}".format(0.0) + 'e03' # in meteres
     
         #line = '     // depth = ' + dep + '\n'
         #file_handle.write(line)
@@ -886,153 +902,219 @@ for ca_i in range(len(coord_azimuth_list)):
     for si in range(p_len-2):
         arclen = "{:.3f}".format(S[si]) + 'e03'   # in meters
         if si == p_len-3:
-            arclen = "{:.3f}".format(S[si]+300) + 'e03'   # in meters
-        if ca_i == coord_points_len-2:
-            arclen = "{:.3f}".format(S[si]*0.75) + 'e03'
-            if si == p_len-3:
-                arclen = "{:.3f}".format((S[si]+300)*0.75) + 'e03'   # in meters
+
+            ## add lines between the fouth and third to last coord to make sure all coordinates have the same number of segments
+            if number_of_segments > p_len:
+                for i in range(number_of_segments-p_len):
+                    #print("range(number_of_segments-p) = ", number_of_segments, ", i = ", i)
+                    if ca_i == coord_points_len-1:
+                        line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(dip[si]) + ',' + "{:.3f}".format(dip[si+1]) + ']'
+                        file_handle.write(line)
+                        line = """,\n          "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+                                        {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """],  "fractions":[1,""" + trench_initial_strain + """], "max distance slab top":0e3},
+                                        {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0e3, "max distance slab top":30e3},
+                                        {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+                        file_handle.write(line)
+                        if i == number_of_segments-p_len-1:
+                            line = "}, // deepest point: ' + dep"
+                        else:
+                            line = '}'
+                        file_handle.write(line)
+                    else:
+                      if i == number_of_segments-p_len-1:
+                          line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[-100.0], "angle":[' + dipn + ']'
+                      elif p_len == 0 and i == 0:
+                          line = '         {"length":0.0, "thickness":[' + thk + '], "top truncation":[-100.0], "angle":[' + dipn + ']'
+                      else:
+                          line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[-100.0], "angle":[' + dipn + ']'
+                      file_handle.write(line)
+                      #line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+                      #                  {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":0},
+                      #                  {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0, "max distance slab top":30e3},
+                      #                  {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+                      #file_handle.write(line)
+                      line = '}'
+                      file_handle.write(line)
+                #line = ' // deepest point: ' + dep
+                #file_handle.write(line)
+
+            line = ',\n'
+            file_handle.write(line)
+            if slab_add_extra_length == True:
+                slab_extra_length_local = (slab_extra_length_till_depth-S[si]-depth[si])/math.sin(((dip[si+1]+dip[si])/2.)*math.pi/180.)
+                if set_slab_extra_length_angle == True:
+                    slab_extra_length_local = (slab_extra_length_till_depth-S[si]-depth[si])/math.sin(((slab_extra_length_angle+dip[si])/2.)*math.pi/180.) # cos(alpha) = a/s -> s = a/cos(alpha) .... 2 = 16/8 => 8 = 16/2
+                #line = "//top = " + "{:.3f}".format(660-150-S[si]-depth[si]) + ", bottom inner = "+ "{:.3f}".format((dip[si+1]+dip[si])/2.) + ", bottom = "+ "{:.3f}".format(math.cos(((dip[si+1]+dip[si])/2.)*math.pi/180.)) + ", sin = " + "{:.3f}".format( (660-150-S[si]-depth[si])/math.sin(((dip[si+1]+dip[si])/2.)*math.pi/180.)) + "\n"
+                #file_handle.write(line)
+                arclen = "{:.3f}".format(S[si]+slab_extra_length_local) + 'e03'   # in meters
+        #if ca_i == coord_points_len-2:
+        #    arclen = "{:.3f}".format(S[si]*0.75) + 'e03'
+        #    if si == p_len-3:
+        #        arclen = "{:.3f}".format((S[si]+slab_extra_length)*0.75) + 'e03'   # in meters
         if ca_i == coord_points_len-1:
         #  if si < 3:
         #    arclen = "{:.3f}".format(S[si]) + 'e03'   # in meters
         #  else:
         #    arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
           arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
-        thk = "{:.1f}".format(thickness) + 'e03' # in meteres
         dipn = "{:.3f}".format(dip[si+1])
+        if si == p_len-3 and set_slab_extra_length_angle == True:
+            dipn = "{:.3f}".format(slab_extra_length_angle)
         dipm = "{:.3f}".format(dip[si])
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[si]) + 'km' # in meters
+        thk = "{:.1f}".format(thickness) + 'e03' # in meteres
+        if ca_i == split_slab_coord and split_slab == True and depth[si] > split_slab_depth:
+            thk = "{:.1f}".format(0.0) + 'e03' # in meteresdipn = "{:.3f}".format(dip[si+1])
 
         #    line = '     // depth = ' + dep + '\n'
         #    file_handle.write(line)
         line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
         file_handle.write(line)
         if depth[si] < 30.:
-            line = """,\n          "composition models":[{"model":"smooth", "compositions":[0,3], "top fractions":[1,0], "bottom fractions":[1,2.0], "min distance slab top":-30e3, "max distance slab top":0},
-                                {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[0,""" + trench_initial_strain_composition + """], "top fractions":[1,0], "bottom fractions":[1,""" + trench_initial_strain + """], "min distance slab top":-30e3, "max distance slab top":0},
+                                {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """], "fractions":[1,0.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
             file_handle.write(line)
         elif depth[si] < 82.5:
             strain_number = 2.0*(1.-((depth[si]-30.)/20.))
             strain = "{:.3f}".format(strain_number)
-            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[2.0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
-                                {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[""" + trench_initial_strain + """], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+                                {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """], "fractions":[1,0.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
             file_handle.write(line)
         elif ca_i == coord_points_len-2 and depth[si] < 82.5:
             strain_number = 2.0*(1.-((depth[si]-30.)/20.))
             strain = "{:.3f}".format(strain_number)
-            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[2.0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
-                                {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[""" + trench_initial_strain + """], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+                                {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """], "fractions":[1,0.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
             file_handle.write(line)
         elif ca_i == coord_points_len-1:
             strain_number = 2.0*(1.-((depth[si]-30.)/20.))
             strain = "{:.3f}".format(strain_number)
-            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[2.0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
-                                {"model":"uniform", "compositions":[1,3], "fractions":[1,0.0], "max distance slab top":7.5e3},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[""" + trench_initial_strain + """], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+                                {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """], "fractions":[1,0.0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
             file_handle.write(line)
-        line = '},  // depth=' + dep + '\n'
+        if si == p_len-4:
+            line = '}'
+        else:
+            line = '},  // depth=' + dep + '\n'
+
         file_handle.write(line)
 
     if p_len > 1:
         # write the second to last line, use the third to last entries.
         #arclen = "{:.3f}".format(S[p_len-3]) + 'e03'   # in meters
         #if ca_i == coord_points_len-2:
-        arclen = "{:.3f}".format(S[p_len-3]) + 'e03'   # in meters
+        arclen = "{:.3f}".format(S[p_len-2]+slab_extra_tip_length) + 'e03'   # in meters
         if ca_i == coord_points_len-1:
             arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
-        thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        dipn = "{:.3f}".format(dip[p_len-2])
-        dipm = "{:.3f}".format(dip[p_len-3])
+        dipn = "{:.3f}".format(dip[p_len-1])
+        if shallow_slab_tip_dip == True and ca_i != coord_points_len-1:
+            dipn = "{:.3f}".format(dip[p_len-1]/2.)
+        dipm = "{:.3f}".format(dip[p_len-2])
+        if set_slab_extra_length_angle == True:
+            dipm = "{:.3f}".format(slab_extra_length_angle)
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len-2]) + 'km' # in meters
+        thk = "{:.1f}".format(thickness) + 'e03' # in meteres
+        if ca_i == split_slab_coord and split_slab == True and depth[p_len-2] > split_slab_depth:
+            thk = "{:.1f}".format(0.0) + 'e03' # in meteres
 
         #line = '     // depth = ' + dep + '\n'
         #file_handle.write(line)
         line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
         file_handle.write(line)
+        line = ''
         if ca_i == coord_points_len-1:
-            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
-                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":7.5e3},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+                                {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """],  "fractions":[1,0], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
-        else:
-            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
-                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":3.75e3},
-                                {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":3.75e3, "max distance slab top":30e3},
-                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+        #else:
+        #    line = """,\n          "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+        #                        {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """],  "fractions":[1,0], "max distance slab top":3.75e3},
+        #                        {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":3.75e3, "max distance slab top":30e3},
+        #                        {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
         file_handle.write(line)
         line = '},  // depth=' + dep + '\n'
         file_handle.write(line)
 
         # write the last line
-        arclen = "{:.3f}".format(S[p_len-1]) + 'e03'   # in meters
+        arclen = "{:.3f}".format(S[p_len-1]+slab_extra_tip_length) + 'e03'   # in meters
         if ca_i == coord_points_len-1:
             arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
-        thk = "{:.1f}".format(thickness) + 'e03' # in meteres
         dipn = "{:.3f}".format(dip[p_len])
+        if shallow_slab_tip_dip == True and ca_i != coord_points_len-1:
+            dipn = "{:.3f}".format(0.0)
         dipm = "{:.3f}".format(dip[p_len-1])
+        if shallow_slab_tip_dip == True and ca_i != coord_points_len-1:
+            dipm = "{:.3f}".format(dip[p_len-1]/2.)
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len]) + 'km' # in meters
+        thk = "{:.1f}".format(thickness) + 'e03' # in meteres
+        if ca_i == split_slab_coord and split_slab == True and depth[p_len] > split_slab_depth:
+            thk = "{:.1f}".format(0.0) + 'e03' # in meteres
 
         #line = '     // depth = ' + dep + '\n'
         #file_handle.write(line)
         line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
         file_handle.write(line)
+        line = ''
         if ca_i == coord_points_len-1:
-            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
-                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,2.0], "max distance slab top":7.5e3},
+            line = """,\n          "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+                                {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """],  "fractions":[1,""" + trench_initial_strain + """], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":7.5e3, "max distance slab top":30e3},
                                 {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
-        else:
-            line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
-                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":0},
-                                {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0, "max distance slab top":30e3},
-                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+        #else:
+        #    line = """,\n          "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+        #                        {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """],  "fractions":[1,0], "max distance slab top":0},
+        #                        {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0, "max distance slab top":30e3},
+        #                        {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
         file_handle.write(line)
         line = '}'
         file_handle.write(line)
 
     ## add lines at the end to make sure all coordinates have the same number of segments
-    if number_of_segments > p_len:
-        for i in range(number_of_segments-p_len):
-            #print("range(number_of_segments-p) = ", number_of_segments, ", i = ", i)
-            if ca_i == coord_points_len-1:
-                line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(dip[si]) + ',' + "{:.3f}".format(dip[si+1]) + ']'
-                file_handle.write(line)
-                line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
-                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,2.0], "max distance slab top":0e3},
-                                {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0e3, "max distance slab top":30e3},
-                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
-                file_handle.write(line)
-                if i == number_of_segments-p_len-1:
-                    line = "} // deepest point: ' + dep"
-                else:
-                    line = '}'
-                file_handle.write(line)
-            else:
-              if i == number_of_segments-p_len-1:
-                  line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
-              elif p_len == 0 and i == 0:
-                  line = '         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
-              else:
-                  line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
-              file_handle.write(line)
-              line = """,\n          "composition models":[{"model":"smooth", "compositions":[3], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0, "operation":"replace defined only"},
-                                {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":0},
-                                {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0, "max distance slab top":30e3},
-                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
-              file_handle.write(line)
-              line = '}'
-              file_handle.write(line)
-        line = ' // deepest point: ' + dep
-        file_handle.write(line)
+    #if number_of_segments > p_len:
+    #    for i in range(number_of_segments-p_len):
+    #        #print("range(number_of_segments-p) = ", number_of_segments, ", i = ", i)
+    #        if ca_i == coord_points_len-1:
+    #            line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(dip[si]) + ',' + "{:.3f}".format(dip[si+1]) + ']'
+    #            file_handle.write(line)
+    #            line = """,\n          "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+    #                            {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """],  "fractions":[1,""" + trench_initial_strain + """], "max distance slab top":0e3},
+    #                            {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0e3, "max distance slab top":30e3},
+    #                            {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+    #            file_handle.write(line)
+    #            if i == number_of_segments-p_len-1:
+    #                line = "} // deepest point: ' + dep"
+    #            else:
+    #                line = '}'
+    #            file_handle.write(line)
+    #        else:
+    #          if i == number_of_segments-p_len-1:
+    #              line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
+    #          elif p_len == 0 and i == 0:
+    #              line = '         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
+    #          else:
+    #              line = ',\n         {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']'
+    #          file_handle.write(line)
+    #          line = """,\n          "composition models":[{"model":"smooth", "compositions":[""" + trench_initial_strain_composition + """], "top fractions":[0.0], "bottom fractions":[0], "min distance slab top":-30e3, "max distance slab top":0""" + replace_defined_only + """},
+    #                            {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """],  "fractions":[1,0], "max distance slab top":0},
+    #                            {"model":"uniform", "compositions":[0,2], "fractions":[0,1], "min distance slab top":0, "max distance slab top":30e3},
+    #                            {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+    #          file_handle.write(line)
+    #          line = '}'
+    #          file_handle.write(line)
+    #    line = ' // deepest point: ' + dep
+    #    file_handle.write(line)
     if number_of_segments < p_len:
         line = ',\n     ERROR: not enough segments!!! Manually increase number_of_segments from ' + "{:.3f}".format(number_of_segments) + " to " + "{:.3f}".format(p_len)
         file_handle.write(line)
