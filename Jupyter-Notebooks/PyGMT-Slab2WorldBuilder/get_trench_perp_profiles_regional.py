@@ -88,8 +88,8 @@ class Bezier:
           side_of_line_2 =  False if (p1[0] - p2[0]) * (p3[1] - p1[1]) - (p1[1] - p2[1]) * (p3[0] - p1[0]) < 0 else True
           if side_of_line_1 == side_of_line_2:
               # use a 180 degree rotated angle to create this control_point
-              self.control_points[0][1][0] = cos(self.angles[1]+math.pi)*length*fraction_of_length+p2[0]
-              self.control_points[0][1][1] = sin(self.angles[1]+math.pi)*length*fraction_of_length+p2[1]
+              self.control_points[0][1][0] = np.cos(self.angles[1]+math.pi)*length*fraction_of_length+p2[0]
+              self.control_points[0][1][1] = np.sin(self.angles[1]+math.pi)*length*fraction_of_length+p2[1]
           
           for p_i in range(n_points-1):
               p1 = points[p_i]
@@ -284,7 +284,7 @@ slab2bird = {
 }
 
 # loc = list(slab2bird.keys())
-
+make_northern_split_slab = False
 
 # %%
 # User chooses a slab and profile spacing
@@ -299,7 +299,11 @@ file_found = False
 while file_found == False:
     loc1 = "cas" #input('Enter the 3-letter code for the slab location: ')
 
-    trenchfile = loc1 + '_trench_coords.xy'
+    #trenchfile = loc1 + '_trench_coords_adapted.xy'
+    if make_northern_split_slab:
+        trenchfile = loc1 + '_trench_coords_north.xy'
+    else:
+        trenchfile = loc1 + '_trench_coords.xy'
 
     if file_exists(trenchfile) == False:
         print('File: ', trenchfile,' not found. Choose a different slab.')
@@ -505,7 +509,36 @@ for i in range(n):
 
 # the azimuth of the list below is determined byt always trying to be perpendicular to the trench, defined by a spline through
 # the chosen points
-coord_points = [3,5,20,40,50,60,70,95,120]
+
+if make_northern_split_slab:
+    coord_points = [80,81,82]
+else:
+    coord_points = [3,5,21,22,23,40,50,60,70,95,120]
+    #coord_points = [3,5,20,40,50,60,70,95,120]  
+#coord_points = [3,5,21,22,23,40,50,83,85,86,95,120]
+#coord_points = [3,5,15,22]
+#coord_points = [22,40,50,83,85,86]
+#coord_points = [3,5,20,40,50,60,70,95,120]
+#coord_points = [3,5,20,40,50,60,70,95,120]
+#coord_points = [3,5,21,22,23,40,50,60,70,93,95, 97,120]
+#coord_points = [3,5,21,22,23,40,50,60,70,80,92, 93,95,97,120]
+#coord_points = [1,2,3,4,5,6,7,8,9,
+#10,11,12,13,14,15,16,17,18,19,
+#20,21,22,23,24,25,26,27,28,29,
+#30,31,32,33,34,35,36,37,38,39,
+#40,41,42,43,44,45,46,47,48,49,
+#50,51,52,53,54,55,56,57,58,59,
+#60,61,62,63,64,65,66,67,68,69,
+#70,71,72,73,74,75,76,77,78,79,
+#80,81,82,83,84,85,86,87,88,89,
+#90,91,92,93,94,95,96,97,98,99,
+#100,101,102,103,104,105,106,107,108,109,
+#110,111,112,113,114,115,116,117,118,119,
+#120]
+
+# if there are more than 2 coord points, a correction is probably needed.
+# for just 2 points disbable it.
+correct_azimuths = True
 coord_azimuth_list = []
 coord_points_len = len(coord_points)
 print("-->>> coord_points_len = ", coord_points_len)
@@ -574,24 +607,30 @@ for x_i in range((len(coord_azimuth_list)-1)*10+1):
 fig.plot(x=spline_coords_x,y=spline_coords_y,pen='0.5p,orange')
 
 # Correct the azimuths to be perpendicular to the spline
-for ca_i in range(len(coord_azimuth_list)):
-    derivative_x = bezier_curve.get_derivative(ca_i)[0]
-    derivative_y = bezier_curve.get_derivative(ca_i)[1]
-    #derivative_x = spline_x.get_derivative(ca_i)
-    #derivative_y = spline_y.get_derivative(ca_i)
-    azimuth = math.atan2(derivative_x,derivative_y)
-    #print(ca_i, " az = ", azimuth*180/math.pi+90., ":", coord_azimuth_list[ca_i][1], ", deriv:", derivative_x, ":", derivative_y)
-    coord_azimuth_list[ca_i][1] = azimuth*180/math.pi+90.
+if correct_azimuths:
+    for ca_i in range(len(coord_azimuth_list)):
+        derivative_x = bezier_curve.get_derivative(ca_i)[0]
+        derivative_y = bezier_curve.get_derivative(ca_i)[1]
+        #derivative_x = spline_x.get_derivative(ca_i)
+        #derivative_y = spline_y.get_derivative(ca_i)
+        azimuth = math.atan2(derivative_x,derivative_y)
+        print(ca_i, "1: az = ", azimuth*180/math.pi+90., ":", coord_azimuth_list[ca_i][1], ", deriv:", derivative_x, ":", derivative_y)
+        #if ca_i == 0:
+        #    azimuth = azimuth - math.pi
+        print(ca_i, "2: az = ", azimuth*180/math.pi+90., ":", coord_azimuth_list[ca_i][1], ", deriv:", derivative_x, ":", derivative_y)
+        coord_azimuth_list[ca_i][1] = azimuth*180/math.pi+90.
+        # ad hoc
+        #coord_azimuth_list[0][1] = coord_azimuth_list[0][1]-180.0
 
 #for ca_i in range(len(coord_azimuth_list)):
 #    print("coord_azimuth_list[",ca_i,"][1] = ", coord_azimuth_list[ca_i][1])
 
 for ca_i in range(len(coord_azimuth_list)):
     ca_i_used = ca_i
-    if ca_i == coord_points_len-2:
-      ca_i_used = coord_points_len-3
-    if ca_i == coord_points_len-1:
-      ca_i_used = coord_points_len-3
+    #if ca_i == coord_points_len-2:
+    #  ca_i_used = coord_points_len-3
+    #if ca_i == coord_points_len-1:
+    #  ca_i_used = coord_points_len-3
     wbnum = coord_azimuth_list[ca_i_used][0] #38 #int(input('Choose profile number to use for WorldBuilder Input: '))
 
     az0 = coord_azimuth_list[ca_i_used][1] #trench_data[wbnum,3]
@@ -808,7 +847,10 @@ for ca_i in range(len(coord_azimuth_list)):
     #           ],
     thickness = 300  # km  slab thickness
     top_trucation = -100
-    number_of_segments=50 #57
+    if make_northern_split_slab:
+        number_of_segments=60 #77 #49 #88 #57 #57
+    else:
+        number_of_segments=49
 
     # Output file for slab segments in json format.
     str_wbnum = str(wbnum).zfill(3)
@@ -821,20 +863,39 @@ for ca_i in range(len(coord_azimuth_list)):
     #line = ' { "segments":[ \n'
     #file_handle.write(line)
     split_slab = False
-    split_slab_coord = 5
-    split_slab_depth = 120
+    split_slab_coord = 4
+    split_slab_extra_coord = 3
+    split_slab_depth = 75
     slab_extra_tip_length = 0
     slab_add_extra_length = False #controls whether to add extra length near the end of the slab. Does not influence the slab_extra_tip_length
-    set_slab_extra_length_angle = True
+    set_slab_extra_length_angle = False
     slab_extra_length_angle = 50
-    slab_extra_length_till_depth = 660-100
+    slab_extra_length_till_depth = 660-210 # 450
     shallow_slab_tip_dip = False
     replace_defined_only = "" #""", "operation":"replace defined only" """
-    trench_initial_strain_composition = "5"
+    trench_initial_strain_composition_south_coord = 4
+    trench_initial_strain_composition_south = "7"
+    trench_initial_strain_composition_north_coord = 8
+    trench_initial_strain_composition_north = "5"
+    trench_initial_strain_composition_center = "6"
     trench_initial_strain = "1.00"
     max_weakzone_depth = 75.0
     weakzone_thickness = "15e3"
 
+    
+    print("ca_i = ", ca_i, ", split_slab_coord = ", split_slab_coord)
+    if ca_i > trench_initial_strain_composition_south_coord and ca_i < trench_initial_strain_composition_north_coord:
+      print("Center")
+      trench_initial_strain_composition = trench_initial_strain_composition_center
+    elif ca_i >= trench_initial_strain_composition_north_coord:
+      print("North")
+      trench_initial_strain_composition = trench_initial_strain_composition_north
+    else:
+      print("South")
+      trench_initial_strain_composition = trench_initial_strain_composition_south
+
+
+    print("trench_initial_strain_composition = ", trench_initial_strain_composition)
     if ca_i == 0:
         ## write segements part first
         line = '     "segments":[\n'
@@ -847,8 +908,11 @@ for ca_i in range(len(coord_azimuth_list)):
             top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
             dep = "{:.3f}".format(depth[si]) + 'km' # in meters
             thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-            if ca_i == split_slab_coord and split_slab == True and depth[si] > split_slab_depth:
+            if ((make_northern_split_slab == False and (ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth) 
+                or 
+                (make_northern_split_slab == True and depth[si] < split_slab_depth)):
                 thk = "{:.1f}".format(0.0) + 'e03' # in meteres
+                top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
     
             #    line = '     // depth = ' + dep + '\n'
             #    file_handle.write(line)
@@ -871,14 +935,17 @@ for ca_i in range(len(coord_azimuth_list)):
             line = '},  // depth=' + dep + '\n'
             file_handle.write(line)
     
-        arclen = "{:.3f}".format(S[p_len-1]) + 'e03'   # in meters
+        arclen = "{:.3f}".format(1.0) + 'e03'   # in meters #"{:.3f}".format(S[p_len-1]) + 'e03'   # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
         dipn = "{:.3f}".format(dip[p_len])
         dipm = "{:.3f}".format(dip[p_len-1])
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len]) + 'km' # in meters
-        if ca_i == split_slab_coord and split_slab == True and depth[p_len] > split_slab_depth:
+        if ((make_northern_split_slab == False and (ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth) 
+            or 
+            (make_northern_split_slab == True and depth[si] < split_slab_depth)):
             thk = "{:.1f}".format(0.0) + 'e03' # in meteres
+            top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
     
         #line = '     // depth = ' + dep + '\n'
         #file_handle.write(line)
@@ -888,7 +955,7 @@ for ca_i in range(len(coord_azimuth_list)):
         ## add lines at the end to make sure all coordinates have the same number of segments
         if number_of_segments > p_len:
             for si in range(number_of_segments-p_len):
-                line = ',\n        {"length":0.0, "thickness":[300.0], "top truncation":[-100.0], "angle":[' + dipn + ']}'
+                line = ',\n        {"length":0.0, "thickness":[300.0], "top truncation":[0.0], "angle":[' + dipn + ']}'
                 file_handle.write(line)
         if number_of_segments < p_len:
             line = ',\n     ERROR: not enough segments!!! Manually increase number_of_segments from ' + "{:.3f}".format(number_of_segments) + " to " + "{:.3f}".format(p_len)
@@ -924,11 +991,11 @@ for ca_i in range(len(coord_azimuth_list)):
                     #    file_handle.write(line)
                     #else:
                       if i == number_of_segments-p_len-1:
-                          line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[-100.0], "angle":[' + dipn + ']'
+                          line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[0.0], "angle":[' + dipn + ']'
                       elif p_len == 0 and i == 0:
-                          line = '         {"length":0.0, "thickness":[' + thk + '], "top truncation":[-100.0], "angle":[' + dipn + ']'
+                          line = '         {"length":0.0, "thickness":[' + thk + '], "top truncation":[0.0], "angle":[' + dipn + ']'
                       else:
-                          line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[-100.0], "angle":[' + dipn + ']'
+                          line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[0.0], "angle":[' + dipn + ']'
                       file_handle.write(line)
                       #line = """,\n          "composition models":[{"model":"uniform", "compositions":[3], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0""" + replace_defined_only + """},
                       #                  {"model":"uniform", "compositions":[1,3],  "fractions":[1,0], "max distance slab top":0},
@@ -966,8 +1033,11 @@ for ca_i in range(len(coord_azimuth_list)):
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[si]) + 'km' # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        if ca_i == split_slab_coord and split_slab == True and depth[si] > split_slab_depth:
+        if ((make_northern_split_slab == False and (ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth) 
+            or 
+            (make_northern_split_slab == True and depth[si] < split_slab_depth)):
             thk = "{:.1f}".format(0.0) + 'e03' # in meteresdipn = "{:.3f}".format(dip[si+1])
+            top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
 
         #    line = '     // depth = ' + dep + '\n'
         #    file_handle.write(line)
@@ -1026,8 +1096,11 @@ for ca_i in range(len(coord_azimuth_list)):
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len-2]) + 'km' # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        if ca_i == split_slab_coord and split_slab == True and depth[p_len-2] > split_slab_depth:
+        if ((make_northern_split_slab == False and (ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth) 
+            or 
+            (make_northern_split_slab == True and depth[si] < split_slab_depth)):
             thk = "{:.1f}".format(0.0) + 'e03' # in meteres
+            top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
 
         #line = '     // depth = ' + dep + '\n'
         #file_handle.write(line)
@@ -1061,8 +1134,11 @@ for ca_i in range(len(coord_azimuth_list)):
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len]) + 'km' # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        if ca_i == split_slab_coord and split_slab == True and depth[p_len] > split_slab_depth:
+        if ((make_northern_split_slab == False and (ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth) 
+            or 
+            (make_northern_split_slab == True and depth[si] < split_slab_depth)):
             thk = "{:.1f}".format(0.0) + 'e03' # in meteres
+            top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
 
         #line = '     // depth = ' + dep + '\n'
         #file_handle.write(line)
