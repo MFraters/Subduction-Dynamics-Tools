@@ -866,7 +866,9 @@ for ca_i in range(len(coord_azimuth_list)):
     split_slab_coord = 4
     split_slab_extra_coord = 3
     split_slab_depth = 75
-    slab_extra_tip_length = 0
+    slab_extra_tip_length_north = 100 # This is divided over the last three segments
+    slab_extra_tip_length_center = 0 # This is divided over the last three segments
+    slab_extra_tip_length_south = 0 # This is divided over the last three segments
     slab_add_extra_length = False #controls whether to add extra length near the end of the slab. Does not influence the slab_extra_tip_length
     set_slab_extra_length_angle = False
     slab_extra_length_angle = 50
@@ -887,12 +889,15 @@ for ca_i in range(len(coord_azimuth_list)):
     if ca_i > trench_initial_strain_composition_south_coord and ca_i < trench_initial_strain_composition_north_coord:
       print("Center")
       trench_initial_strain_composition = trench_initial_strain_composition_center
+      slab_extra_tip_length = slab_extra_tip_length_center
     elif ca_i >= trench_initial_strain_composition_north_coord:
       print("North")
       trench_initial_strain_composition = trench_initial_strain_composition_north
+      slab_extra_tip_length = slab_extra_tip_length_north
     else:
       print("South")
       trench_initial_strain_composition = trench_initial_strain_composition_south
+      slab_extra_tip_length = slab_extra_tip_length_south
 
 
     print("trench_initial_strain_composition = ", trench_initial_strain_composition)
@@ -900,6 +905,7 @@ for ca_i in range(len(coord_azimuth_list)):
         ## write segements part first
         line = '     "segments":[\n'
         file_handle.write(line)
+
 
         for si in range(p_len-1):
             arclen = "{:.3f}".format(S[si]) + 'e03'   # in meters
@@ -968,8 +974,26 @@ for ca_i in range(len(coord_azimuth_list)):
         line = ',\n       {"coordinate":' + "{}".format(ca_i) + ', "segments":[\n'
     file_handle.write(line)	
     
+
+    print("ca_i = ", ca_i, ", p_len = ", p_len)
+    if(p_len < 1):
+        for i in range(number_of_segments-p_len):
+            if i == number_of_segments-p_len-1:
+                line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[0.0], "angle":[' + dipn + ']'
+            elif p_len == 0 and i == 0:
+                line = '         {"length":0.0, "thickness":[' + thk + '], "top truncation":[0.0], "angle":[' + dipn + ']'
+            else:
+                line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[0.0], "angle":[' + dipn + ']'
+            file_handle.write(line)
+            line = '}'
+            file_handle.write(line)
+            continue
+
     for si in range(p_len-2):
-        arclen = "{:.3f}".format(S[si]) + 'e03'   # in meters
+        if si >= p_len - 10:
+          arclen = "{:.3f}".format(S[si]+slab_extra_tip_length/10.) + 'e03'   # in meters
+        else:
+          arclen = "{:.3f}".format(S[si]) + 'e03'   # in meters
         if si == p_len-3:
 
             ## add lines between the fouth and third to last coord to make sure all coordinates have the same number of segments
@@ -1015,7 +1039,10 @@ for ca_i in range(len(coord_azimuth_list)):
                     slab_extra_length_local = (slab_extra_length_till_depth-S[si]-depth[si])/math.sin(((slab_extra_length_angle+dip[si])/2.)*math.pi/180.) # cos(alpha) = a/s -> s = a/cos(alpha) .... 2 = 16/8 => 8 = 16/2
                 #line = "//top = " + "{:.3f}".format(660-150-S[si]-depth[si]) + ", bottom inner = "+ "{:.3f}".format((dip[si+1]+dip[si])/2.) + ", bottom = "+ "{:.3f}".format(math.cos(((dip[si+1]+dip[si])/2.)*math.pi/180.)) + ", sin = " + "{:.3f}".format( (660-150-S[si]-depth[si])/math.sin(((dip[si+1]+dip[si])/2.)*math.pi/180.)) + "\n"
                 #file_handle.write(line)
-                arclen = "{:.3f}".format(S[si]+slab_extra_length_local) + 'e03'   # in meters
+                if si == p_len - 7:
+                  arclen = "{:.3f}".format(S[si]+slab_extra_length_local+slab_extra_tip_length/10.) + 'e03'   # in meters
+                else:
+                  arclen = "{:.3f}".format(S[si]+slab_extra_length_local+slab_extra_tip_length/10.) + 'e03'   # in meters
         #if ca_i == coord_points_len-2:
         #    arclen = "{:.3f}".format(S[si]*0.75) + 'e03'
         #    if si == p_len-3:
@@ -1084,7 +1111,7 @@ for ca_i in range(len(coord_azimuth_list)):
         # write the second to last line, use the third to last entries.
         #arclen = "{:.3f}".format(S[p_len-3]) + 'e03'   # in meters
         #if ca_i == coord_points_len-2:
-        arclen = "{:.3f}".format(S[p_len-2]+slab_extra_tip_length) + 'e03'   # in meters
+        arclen = "{:.3f}".format(S[p_len-2]+slab_extra_tip_length/10.) + 'e03'   # in meters
         #if ca_i == coord_points_len-1:
         #    arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
         dipn = "{:.3f}".format(dip[p_len-1])
@@ -1122,7 +1149,7 @@ for ca_i in range(len(coord_azimuth_list)):
         file_handle.write(line)
 
         # write the last line
-        arclen = "{:.3f}".format(S[p_len-1]+slab_extra_tip_length) + 'e03'   # in meters
+        arclen = "{:.3f}".format(S[p_len-1]+slab_extra_tip_length/10.) + 'e03'   # in meters
         #if ca_i == coord_points_len-1:
         #    arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
         dipn = "{:.3f}".format(dip[p_len])
