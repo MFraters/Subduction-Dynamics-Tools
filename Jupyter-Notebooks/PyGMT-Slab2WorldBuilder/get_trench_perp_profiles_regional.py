@@ -284,7 +284,6 @@ slab2bird = {
 }
 
 # loc = list(slab2bird.keys())
-make_northern_split_slab = False
 
 # %%
 # User chooses a slab and profile spacing
@@ -300,10 +299,7 @@ while file_found == False:
     loc1 = "cas" #input('Enter the 3-letter code for the slab location: ')
 
     #trenchfile = loc1 + '_trench_coords_adapted.xy'
-    if make_northern_split_slab:
-        trenchfile = loc1 + '_trench_coords_north.xy'
-    else:
-        trenchfile = loc1 + '_trench_coords.xy'
+    trenchfile = loc1 + '_trench_coords.xy'
 
     if file_exists(trenchfile) == False:
         print('File: ', trenchfile,' not found. Choose a different slab.')
@@ -510,10 +506,8 @@ for i in range(n):
 # the azimuth of the list below is determined byt always trying to be perpendicular to the trench, defined by a spline through
 # the chosen points
 
-if make_northern_split_slab:
-    coord_points = [80,81,82]
-else:
-    coord_points = [3,5,21,22,23,40,50,60,70,95,120]
+
+coord_points = [3,5,21,22,23,40,50,60,70,95,120]
     #coord_points = [3,5,20,40,50,60,70,95,120]  
 #coord_points = [3,5,21,22,23,40,50,83,85,86,95,120]
 #coord_points = [3,5,15,22]
@@ -847,10 +841,7 @@ for ca_i in range(len(coord_azimuth_list)):
     #           ],
     thickness = 300  # km  slab thickness
     top_trucation = -100
-    if make_northern_split_slab:
-        number_of_segments=60 #77 #49 #88 #57 #57
-    else:
-        number_of_segments=49
+    number_of_segments=49
 
     # Output file for slab segments in json format.
     str_wbnum = str(wbnum).zfill(3)
@@ -862,10 +853,13 @@ for ca_i in range(len(coord_azimuth_list)):
     #line = ' { "coordinates":[[' + "{:.3f}".format(trench_data[wbnum,0]) + ',' + "{:.3f}".format(trench_data[wbnum,1]) + ']],\n   "segments":[ \n'
     #line = ' { "segments":[ \n'
     #file_handle.write(line)
-    split_slab = False
-    split_slab_coord = 4
-    split_slab_extra_coord = 3
-    split_slab_depth = 75
+    split_slab = True
+    split_slab_coord_1 = 6
+    split_slab_depth_1 = 300
+    split_slab_coord_2 = 5
+    split_slab_depth_2 = 200
+    split_slab_coord_3 = 4
+    split_slab_depth_3 = 300
     slab_extra_tip_length_north = 100 # This is divided over the last three segments
     slab_extra_tip_length_center = 0 # This is divided over the last three segments
     slab_extra_tip_length_south = 0 # This is divided over the last three segments
@@ -914,9 +908,7 @@ for ca_i in range(len(coord_azimuth_list)):
             top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
             dep = "{:.3f}".format(depth[si]) + 'km' # in meters
             thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-            if ((make_northern_split_slab == False and (ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth) 
-                or 
-                (make_northern_split_slab == True and depth[si] < split_slab_depth)):
+            if ((ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth):
                 thk = "{:.1f}".format(0.0) + 'e03' # in meteres
                 top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
     
@@ -947,9 +939,7 @@ for ca_i in range(len(coord_azimuth_list)):
         dipm = "{:.3f}".format(dip[p_len-1])
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len]) + 'km' # in meters
-        if ((make_northern_split_slab == False and (ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth) 
-            or 
-            (make_northern_split_slab == True and depth[si] < split_slab_depth)):
+        if ((ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth):
             thk = "{:.1f}".format(0.0) + 'e03' # in meteres
             top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
     
@@ -1060,9 +1050,7 @@ for ca_i in range(len(coord_azimuth_list)):
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[si]) + 'km' # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        if ((make_northern_split_slab == False and (ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth) 
-            or 
-            (make_northern_split_slab == True and depth[si] < split_slab_depth)):
+        if ((ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth):
             thk = "{:.1f}".format(0.0) + 'e03' # in meteresdipn = "{:.3f}".format(dip[si+1])
             top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
 
@@ -1123,9 +1111,7 @@ for ca_i in range(len(coord_azimuth_list)):
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len-2]) + 'km' # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        if ((make_northern_split_slab == False and (ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth) 
-            or 
-            (make_northern_split_slab == True and depth[si] < split_slab_depth)):
+        if ((ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth):
             thk = "{:.1f}".format(0.0) + 'e03' # in meteres
             top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
 
@@ -1161,9 +1147,7 @@ for ca_i in range(len(coord_azimuth_list)):
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len]) + 'km' # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        if ((make_northern_split_slab == False and (ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth) 
-            or 
-            (make_northern_split_slab == True and depth[si] < split_slab_depth)):
+        if ((ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth):
             thk = "{:.1f}".format(0.0) + 'e03' # in meteres
             top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
 
