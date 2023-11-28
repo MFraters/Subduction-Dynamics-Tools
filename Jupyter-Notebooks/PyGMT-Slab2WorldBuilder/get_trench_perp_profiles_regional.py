@@ -507,7 +507,7 @@ for i in range(n):
 # the chosen points
 
 
-coord_points = [3,5,21,22,23,40,50,60,70,95,120]
+coord_points = [3,5,7,21,22,23,30,40,45,50,60,70,75,95,120]
     #coord_points = [3,5,20,40,50,60,70,95,120]  
 #coord_points = [3,5,21,22,23,40,50,83,85,86,95,120]
 #coord_points = [3,5,15,22]
@@ -621,6 +621,8 @@ if correct_azimuths:
 
 for ca_i in range(len(coord_azimuth_list)):
     ca_i_used = ca_i
+    if ca_i == coord_points_len-1:
+      ca_i_used = coord_points_len-2
     #if ca_i == coord_points_len-2:
     #  ca_i_used = coord_points_len-3
     #if ca_i == coord_points_len-1:
@@ -841,7 +843,7 @@ for ca_i in range(len(coord_azimuth_list)):
     #           ],
     thickness = 300  # km  slab thickness
     top_trucation = -100
-    number_of_segments=49
+    number_of_segments=50
 
     # Output file for slab segments in json format.
     str_wbnum = str(wbnum).zfill(3)
@@ -854,13 +856,23 @@ for ca_i in range(len(coord_azimuth_list)):
     #line = ' { "segments":[ \n'
     #file_handle.write(line)
     split_slab = True
-    split_slab_coord_1 = 6
-    split_slab_depth_1 = 300
-    split_slab_coord_2 = 5
-    split_slab_depth_2 = 200
-    split_slab_coord_3 = 4
-    split_slab_depth_3 = 300
-    slab_extra_tip_length_north = 100 # This is divided over the last three segments
+    split_slab_depth_14 = 280
+    split_slab_depth_13 = 680
+    split_slab_depth_12 = 680
+    split_slab_depth_11 = 150
+    split_slab_depth_10 = 150
+    split_slab_depth_9 = 150
+    split_slab_depth_8 = 150
+    split_slab_depth_7 = 150
+    split_slab_depth_6 = 200
+    split_slab_depth_5 = 350
+    split_slab_depth_4 = 275
+    split_slab_depth_3 = 275
+    split_slab_depth_2 = 500
+    split_slab_depth_1 = 500
+    split_slab_depth_0 = 150
+    slab_extra_tip_length_northest = 600
+    slab_extra_tip_length_north = 300 # This is divided over the last three segments
     slab_extra_tip_length_center = 0 # This is divided over the last three segments
     slab_extra_tip_length_south = 0 # This is divided over the last three segments
     slab_add_extra_length = False #controls whether to add extra length near the end of the slab. Does not influence the slab_extra_tip_length
@@ -868,31 +880,46 @@ for ca_i in range(len(coord_azimuth_list)):
     slab_extra_length_angle = 50
     slab_extra_length_till_depth = 660-210 # 450
     shallow_slab_tip_dip = False
+    steep_slab_factor = 1.0
     replace_defined_only = "" #""", "operation":"replace defined only" """
     trench_initial_strain_composition_south_coord = 4
     trench_initial_strain_composition_south = "7"
-    trench_initial_strain_composition_north_coord = 8
+    trench_initial_strain_composition_north_coord = 11
+    trench_initial_strain_composition_northest_coord = 12
     trench_initial_strain_composition_north = "5"
     trench_initial_strain_composition_center = "6"
     trench_initial_strain = "1.00"
     max_weakzone_depth = 75.0
-    weakzone_thickness = "15e3"
+    weakzone_thickness = "15e3" #"0e3" #"15e3"
+    taper_distance = "50e3"
 
     
-    print("ca_i = ", ca_i, ", split_slab_coord = ", split_slab_coord)
+    #print("ca_i = ", ca_i, ", split_slab_coord = ", split_slab_coord)
     if ca_i > trench_initial_strain_composition_south_coord and ca_i < trench_initial_strain_composition_north_coord:
       print("Center")
       trench_initial_strain_composition = trench_initial_strain_composition_center
       slab_extra_tip_length = slab_extra_tip_length_center
+      taper_distance = "10e3"
     elif ca_i >= trench_initial_strain_composition_north_coord:
-      print("North")
-      trench_initial_strain_composition = trench_initial_strain_composition_north
-      slab_extra_tip_length = slab_extra_tip_length_north
+      if ca_i < 13:
+        print("North")
+        trench_initial_strain_composition = trench_initial_strain_composition_north
+        shallow_slab_tip_dip = True
+        if ca_i >= trench_initial_strain_composition_northest_coord:
+          slab_extra_tip_length = slab_extra_tip_length_northest
+        else:
+          slab_extra_tip_length = slab_extra_tip_length_north
+      else:
+        slab_extra_tip_length = 150
+        steep_slab_factor = 1.0
+        taper_distance = "10e3"
+      if ca_i > 12:
+        shallow_slab_tip_dip = False
     else:
       print("South")
       trench_initial_strain_composition = trench_initial_strain_composition_south
       slab_extra_tip_length = slab_extra_tip_length_south
-
+      shallow_slab_tip_dip = True
 
     print("trench_initial_strain_composition = ", trench_initial_strain_composition)
     if ca_i == 0:
@@ -900,23 +927,27 @@ for ca_i in range(len(coord_azimuth_list)):
         line = '     "segments":[\n'
         file_handle.write(line)
 
-
+        
         for si in range(p_len-1):
             arclen = "{:.3f}".format(S[si]) + 'e03'   # in meters
-            dipn = "{:.3f}".format(dip[si+1])
-            dipm = "{:.3f}".format(dip[si])
+            dipn = "{:.3f}".format(dip[si+1]*steep_slab_factor)
+            dipm = "{:.3f}".format(dip[si]*steep_slab_factor)
             top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
             dep = "{:.3f}".format(depth[si]) + 'km' # in meters
             thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-            if ((ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth):
-                thk = "{:.1f}".format(0.0) + 'e03' # in meteres
-                top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
+
+            #if ca_i == coord_points_len-1 or ca_i == coord_points_len-2:
+            #    thk = "{:.1f}".format(25.0) + 'e03' # in meteres
+            if (split_slab == True  and ((ca_i == 0 and depth[si] > split_slab_depth_0) or (ca_i == 1 and depth[si] > split_slab_depth_1) or (ca_i == 2 and depth[si] > split_slab_depth_2) or (ca_i == 3 and depth[si] > split_slab_depth_3) or (ca_i == 4 and depth[si] > split_slab_depth_4)  or (ca_i == 5 and depth[si] > split_slab_depth_5) or (ca_i == 6 and depth[si] > split_slab_depth_6) or (ca_i == 7 and depth[si] > split_slab_depth_7) or (ca_i == 8 and depth[si] > split_slab_depth_8) or (ca_i == 9 and depth[si] > split_slab_depth_9) or (ca_i == 10 and depth[si] > split_slab_depth_10)or (ca_i == 11 and depth[si] > split_slab_depth_11)or (ca_i == 12 and depth[si] > split_slab_depth_12)or (ca_i == 13 and depth[si] > split_slab_depth_13)or (ca_i == 14 and depth[si] > split_slab_depth_14))):
+                #thk = "{:.1f}".format(0.0) + 'e03' # in meteres
+                #top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
+                arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
     
             #    line = '     // depth = ' + dep + '\n'
             #    file_handle.write(line)
             line = '       {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
             file_handle.write(line)
-            if depth[si] < 30.:
+            if depth[si] < 30. and depth[si] < max_weakzone_depth:
                 line = """,\n        "composition models":[{"model":"uniform", "compositions":[""" + trench_initial_strain_composition + """], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0},
                               {"model":"uniform", "compositions":[1], "max distance slab top":7.5e3},
                               {"model":"uniform", "compositions":[2], "min distance slab top":7.5e3, "max distance slab top":30e3},
@@ -935,13 +966,18 @@ for ca_i in range(len(coord_azimuth_list)):
     
         arclen = "{:.3f}".format(1.0) + 'e03'   # in meters #"{:.3f}".format(S[p_len-1]) + 'e03'   # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        dipn = "{:.3f}".format(dip[p_len])
-        dipm = "{:.3f}".format(dip[p_len-1])
+        dipn = "{:.3f}".format(dip[p_len]*steep_slab_factor)
+        dipm = "{:.3f}".format(dip[p_len-1]*steep_slab_factor)
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len]) + 'km' # in meters
-        if ((ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth):
-            thk = "{:.1f}".format(0.0) + 'e03' # in meteres
-            top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
+
+
+        #if ca_i == coord_points_len-1 or ca_i == coord_points_len-2:
+        #    thk = "{:.1f}".format(25.0) + 'e03' # in meteres
+        if (split_slab == True  and ((ca_i == 0 and depth[si] > split_slab_depth_0) or (ca_i == 1 and depth[si] > split_slab_depth_1) or (ca_i == 2 and depth[si] > split_slab_depth_2) or (ca_i == 3 and depth[si] > split_slab_depth_3) or (ca_i == 4 and depth[si] > split_slab_depth_4)  or (ca_i == 5 and depth[si] > split_slab_depth_5) or (ca_i == 6 and depth[si] > split_slab_depth_6) or (ca_i == 7 and depth[si] > split_slab_depth_7) or (ca_i == 8 and depth[si] > split_slab_depth_8) or (ca_i == 9 and depth[si] > split_slab_depth_9) or (ca_i == 10 and depth[si] > split_slab_depth_10)or (ca_i == 11 and depth[si] > split_slab_depth_11)or (ca_i == 12 and depth[si] > split_slab_depth_12)or (ca_i == 13 and depth[si] > split_slab_depth_13)or (ca_i == 14 and depth[si] > split_slab_depth_14))):
+            #thk = "{:.1f}".format(0.0) + 'e03' # in meteres
+            #top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
+            arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
     
         #line = '     // depth = ' + dep + '\n'
         #file_handle.write(line)
@@ -966,6 +1002,7 @@ for ca_i in range(len(coord_azimuth_list)):
     
 
     print("ca_i = ", ca_i, ", p_len = ", p_len)
+
     if(p_len < 1):
         for i in range(number_of_segments-p_len):
             if i == number_of_segments-p_len-1:
@@ -991,7 +1028,7 @@ for ca_i in range(len(coord_azimuth_list)):
                 for i in range(number_of_segments-p_len):
                     #print("range(number_of_segments-p) = ", number_of_segments, ", i = ", i)
                     #if ca_i == coord_points_len-1:
-                    #    line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(dip[si]) + ',' + "{:.3f}".format(dip[si+1]) + ']'
+                    #    line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(dip[si]*steep_slab_factor) + ',' + "{:.3f}".format(dip[si+1]*steep_slab_factor) + ']'
                     #    file_handle.write(line)
                     #    line = """,\n          "composition models":[{"model":"uniform", "compositions":[""" + trench_initial_strain_composition + """], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0""" + replace_defined_only + """},
                     #                    {"model":"uniform", "compositions":[""" + trench_initial_strain_composition + """], "max distance slab top":0e3},
@@ -1043,22 +1080,26 @@ for ca_i in range(len(coord_azimuth_list)):
         #  else:
         #    arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
           #arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
-        dipn = "{:.3f}".format(dip[si+1])
+        dipn = "{:.3f}".format(dip[si+1]*steep_slab_factor)
         if si == p_len-3 and set_slab_extra_length_angle == True:
             dipn = "{:.3f}".format(slab_extra_length_angle)
-        dipm = "{:.3f}".format(dip[si])
+        dipm = "{:.3f}".format(dip[si]*steep_slab_factor)
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[si]) + 'km' # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        if ((ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth):
-            thk = "{:.1f}".format(0.0) + 'e03' # in meteresdipn = "{:.3f}".format(dip[si+1])
-            top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
+
+        #if ca_i == coord_points_len-1 or ca_i == coord_points_len-2:
+        #    thk = "{:.1f}".format(25.0) + 'e03' # in meteres
+        if (split_slab == True  and ((ca_i == 0 and depth[si] > split_slab_depth_0) or (ca_i == 1 and depth[si] > split_slab_depth_1) or (ca_i == 2 and depth[si] > split_slab_depth_2) or (ca_i == 3 and depth[si] > split_slab_depth_3) or (ca_i == 4 and depth[si] > split_slab_depth_4)  or (ca_i == 5 and depth[si] > split_slab_depth_5) or (ca_i == 6 and depth[si] > split_slab_depth_6) or (ca_i == 7 and depth[si] > split_slab_depth_7) or (ca_i == 8 and depth[si] > split_slab_depth_8) or (ca_i == 9 and depth[si] > split_slab_depth_9) or (ca_i == 10 and depth[si] > split_slab_depth_10)or (ca_i == 11 and depth[si] > split_slab_depth_11)or (ca_i == 12 and depth[si] > split_slab_depth_12)or (ca_i == 13 and depth[si] > split_slab_depth_13)or (ca_i == 14 and depth[si] > split_slab_depth_14))):
+            #thk = "{:.1f}".format(0.0) + 'e03' # in meteresdipn = "{:.3f}".format(dip[si+1]*steep_slab_factor)
+            #top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
+            arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
 
         #    line = '     // depth = ' + dep + '\n'
         #    file_handle.write(line)
         line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
         file_handle.write(line)
-        if depth[si] < 30.:
+        if depth[si] < 30. and depth[si] < max_weakzone_depth:
             line = """,\n          "composition models":[{"model":"uniform", "compositions":[""" + trench_initial_strain_composition + """], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0},
                                 {"model":"uniform", "compositions":[1], "max distance slab top":7.5e3},
                                 {"model":"uniform", "compositions":[2], "min distance slab top":7.5e3, "max distance slab top":30e3},
@@ -1096,30 +1137,49 @@ for ca_i in range(len(coord_azimuth_list)):
         file_handle.write(line)
 
     if p_len > 1:
+        si = p_len-2
         # write the second to last line, use the third to last entries.
         #arclen = "{:.3f}".format(S[p_len-3]) + 'e03'   # in meters
         #if ca_i == coord_points_len-2:
         arclen = "{:.3f}".format(S[p_len-2]+slab_extra_tip_length/10.) + 'e03'   # in meters
         #if ca_i == coord_points_len-1:
         #    arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
-        dipn = "{:.3f}".format(dip[p_len-1])
+        dipn = "{:.3f}".format(dip[p_len-1]*steep_slab_factor)
         if shallow_slab_tip_dip == True: # and ca_i != coord_points_len-1:
-            dipn = "{:.3f}".format(dip[p_len-1]/2.)
+            dipn = "{:.3f}".format(dip[p_len-1]*steep_slab_factor/2.)
         dipm = "{:.3f}".format(dip[p_len-2])
         if set_slab_extra_length_angle == True:
             dipm = "{:.3f}".format(slab_extra_length_angle)
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len-2]) + 'km' # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        if ((ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth):
-            thk = "{:.1f}".format(0.0) + 'e03' # in meteres
-            top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
+
+        #if ca_i == coord_points_len-1 or ca_i == coord_points_len-2:
+        #    thk = "{:.1f}".format(25.0) + 'e03' # in meteres
+        if (split_slab == True  and ((ca_i == 0 and depth[si] > split_slab_depth_0) or (ca_i == 1 and depth[si] > split_slab_depth_1) or (ca_i == 2 and depth[si] > split_slab_depth_2) or (ca_i == 3 and depth[si] > split_slab_depth_3) or (ca_i == 4 and depth[si] > split_slab_depth_4)  or (ca_i == 5 and depth[si] > split_slab_depth_5) or (ca_i == 6 and depth[si] > split_slab_depth_6) or (ca_i == 7 and depth[si] > split_slab_depth_7) or (ca_i == 8 and depth[si] > split_slab_depth_8) or (ca_i == 9 and depth[si] > split_slab_depth_9) or (ca_i == 10 and depth[si] > split_slab_depth_10)or (ca_i == 11 and depth[si] > split_slab_depth_11)or (ca_i == 12 and depth[si] > split_slab_depth_12)or (ca_i == 13 and depth[si] > split_slab_depth_13)or (ca_i == 14 and depth[si] > split_slab_depth_14))):
+            #thk = "{:.1f}".format(0.0) + 'e03' # in meteres
+            #top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
+            arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
 
         #line = '     // depth = ' + dep + '\n'
         #file_handle.write(line)
         line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
         file_handle.write(line)
         line = ''
+        if depth[si] < 30. and depth[si] < max_weakzone_depth:
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[""" + trench_initial_strain_composition + """], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0},
+                                {"model":"uniform", "compositions":[1], "max distance slab top":7.5e3},
+                                {"model":"uniform", "compositions":[2], "min distance slab top":7.5e3, "max distance slab top":30e3},
+                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+            #file_handle.write(line)
+        elif depth[si] < max_weakzone_depth:
+            strain_number = 2.0*(1.-((depth[si]-30.)/20.))
+            strain = "{:.3f}".format(strain_number)
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[""" + trench_initial_strain_composition + """], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0""" + replace_defined_only + """},
+                                {"model":"uniform", "compositions":[1], "max distance slab top":7.5e3},
+                                {"model":"uniform", "compositions":[2], "min distance slab top":7.5e3, "max distance slab top":30e3},
+                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+            #file_handle.write(line)
         #if ca_i == coord_points_len-1:
         #    line = """,\n          "composition models":[{"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0""" + replace_defined_only + """},
         #                        {"model":"uniform", "compositions":[1], "max distance slab top":7.5e3},
@@ -1135,27 +1195,46 @@ for ca_i in range(len(coord_azimuth_list)):
         file_handle.write(line)
 
         # write the last line
+        si = p_len-1
         arclen = "{:.3f}".format(S[p_len-1]+slab_extra_tip_length/10.) + 'e03'   # in meters
         #if ca_i == coord_points_len-1:
         #    arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
-        dipn = "{:.3f}".format(dip[p_len])
+        dipn = "{:.3f}".format(dip[p_len]*steep_slab_factor)
         if shallow_slab_tip_dip == True: # and ca_i != coord_points_len-1:
             dipn = "{:.3f}".format(0.0)
-        dipm = "{:.3f}".format(dip[p_len-1])
+        dipm = "{:.3f}".format(dip[p_len-1]*steep_slab_factor)
         if shallow_slab_tip_dip == True: # and ca_i != coord_points_len-1:
-            dipm = "{:.3f}".format(dip[p_len-1]/2.)
+            dipm = "{:.3f}".format(dip[p_len-1]*steep_slab_factor/2.)
         top_trunk= "{:.3f}".format(top_trucation) + 'e03' # in meters
         dep = "{:.3f}".format(depth[p_len]) + 'km' # in meters
         thk = "{:.1f}".format(thickness) + 'e03' # in meteres
-        if ((ca_i == split_slab_coord or ca_i == split_slab_extra_coord) and split_slab == True and depth[si] > split_slab_depth):
-            thk = "{:.1f}".format(0.0) + 'e03' # in meteres
-            top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
+
+        #if ca_i == coord_points_len-1 or ca_i == coord_points_len-2:
+        #    thk = "{:.1f}".format(25.0) + 'e03' # in meteres
+        if (split_slab == True  and ((ca_i == 0 and depth[si] > split_slab_depth_0) or (ca_i == 1 and depth[si] > split_slab_depth_1) or (ca_i == 2 and depth[si] > split_slab_depth_2) or (ca_i == 3 and depth[si] > split_slab_depth_3) or (ca_i == 4 and depth[si] > split_slab_depth_4)  or (ca_i == 5 and depth[si] > split_slab_depth_5) or (ca_i == 6 and depth[si] > split_slab_depth_6) or (ca_i == 7 and depth[si] > split_slab_depth_7) or (ca_i == 8 and depth[si] > split_slab_depth_8) or (ca_i == 9 and depth[si] > split_slab_depth_9) or (ca_i == 10 and depth[si] > split_slab_depth_10)or (ca_i == 11 and depth[si] > split_slab_depth_11)or (ca_i == 12 and depth[si] > split_slab_depth_12)or (ca_i == 13 and depth[si] > split_slab_depth_13)or (ca_i == 14 and depth[si] > split_slab_depth_14))):
+            #thk = "{:.1f}".format(0.0) + 'e03' # in meteres
+            #top_trunk= "{:.3f}".format(0.0) + 'e03' # in meters
+            arclen = "{:.3f}".format(0.0) + 'e03'   # in meters
 
         #line = '     // depth = ' + dep + '\n'
         #file_handle.write(line)
         line = '         {"length":' + arclen + ', "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + dipm + ',' + dipn + ']'
         file_handle.write(line)
         line = ''
+        if depth[si] < 30. and depth[si] < max_weakzone_depth:
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[""" + trench_initial_strain_composition + """], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0},
+                                {"model":"uniform", "compositions":[1], "max distance slab top":7.5e3},
+                                {"model":"uniform", "compositions":[2], "min distance slab top":7.5e3, "max distance slab top":30e3},
+                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+            #file_handle.write(line)
+        elif depth[si] < max_weakzone_depth:
+            strain_number = 2.0*(1.-((depth[si]-30.)/20.))
+            strain = "{:.3f}".format(strain_number)
+            line = """,\n          "composition models":[{"model":"uniform", "compositions":[""" + trench_initial_strain_composition + """], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0""" + replace_defined_only + """},
+                                {"model":"uniform", "compositions":[1], "max distance slab top":7.5e3},
+                                {"model":"uniform", "compositions":[2], "min distance slab top":7.5e3, "max distance slab top":30e3},
+                                {"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":30e3, "max distance slab top":100e3}]"""
+            #file_handle.write(line)
         #if ca_i == coord_points_len-1:
         #    line = """,\n          "composition models":[{"model":"uniform", "compositions":[0], "fractions":[0], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0""" + replace_defined_only + """},
         #                        {"model":"uniform", "compositions":[1], "max distance slab top":7.5e3},
@@ -1175,7 +1254,7 @@ for ca_i in range(len(coord_azimuth_list)):
     #    for i in range(number_of_segments-p_len):
     #        #print("range(number_of_segments-p) = ", number_of_segments, ", i = ", i)
     #        if ca_i == coord_points_len-1:
-    #            line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(dip[si]) + ',' + "{:.3f}".format(dip[si+1]) + ']'
+    #            line = ',\n         {"length":0.0, "thickness":[' + thk + '], "top truncation":[' + top_trunk + '], "angle":[' + "{:.3f}".format(dip[si]*steep_slab_factor) + ',' + "{:.3f}".format(dip[si+1]*steep_slab_factor) + ']'
     #            file_handle.write(line)
     #            line = """,\n          "composition models":[{"model":"uniform", "compositions":[""" + trench_initial_strain_composition + """], "min distance slab top":-""" + weakzone_thickness + """, "max distance slab top":0""" + replace_defined_only + """},
     #                            {"model":"uniform", "compositions":[1,""" + trench_initial_strain_composition + """],  "fractions":[1,""" + trench_initial_strain + """], "max distance slab top":0e3},
@@ -1208,7 +1287,30 @@ for ca_i in range(len(coord_azimuth_list)):
         line = ',\n     ERROR: not enough segments!!! Manually increase number_of_segments from ' + "{:.3f}".format(number_of_segments) + " to " + "{:.3f}".format(p_len)
         file_handle.write(line)
         assert False, "ERROR: not enough segments!!! Manually increase number_of_segments from " + "{:.3f}".format(number_of_segments) + " to " + "{:.3f}".format(p_len)
-    line = '\n        ] }'
+    line = '\n        ],' 
+
+    file_handle.write(line)	
+    line = """
+    "temperature models":[{"model":"mass conserving","adiabatic heating":true, "density":3300, "plate velocity":0.04,"coupling depth":50e3, "forearc cooling factor":10, "min distance slab top":-200e3,"max distance slab top":300e3, "taper distance": """ + taper_distance + """,
+    "ridge coordinates":
+     [
+     [[-130.04499816894531,51.127998352050781],[-130.2239990234375,51],[-130.50300598144531,50.799999237060547],[-130.65899658203125,50.687999725341797]],
+     [[-129.71800231933594,50.187999725341797],[-129.91000366210937,50],[-130.11500549316406,49.799999237060547],[-130.32000732421875,49.599998474121094],[-130.52499389648437,49.400001525878906],[-130.53399658203125,49.390998840332031]],
+     [[-128.79600524902344,48.655998229980469],[-128.822998046875,48.599998474121094],[-128.91799926757812,48.400001525878906],[-129.01300048828125,48.200000762939453],[-129.10800170898437,48],[-129.17999267578125,47.847999572753906]],
+     [[-128.69400024414062,47.7239990234375],[-128.75799560546875,47.599998474121094],[-128.86199951171875,47.400001525878906],[-128.96600341796875,47.200000762939453],[-129.07000732421875,47],[-129.17300415039062,46.799999237060547],[-129.27699279785156,46.599998474121094],[-129.38099670410156,46.400001525878906],[-129.48500061035156,46.200000762939453],[-129.58900451660156,46],[-129.69200134277344,45.799999237060547],[-129.79600524902344,45.599998474121094],[-129.89999389648437,45.400001525878906],[-130.00399780273437,45.200000762939453],[-130.10699462890625,45],[-130.21099853515625,44.799999237060547],[-130.31500244140625,44.599998474121094]],
+     [[-128.4949951171875,43.944000244140625],[-128.61700439453125,43.799999237060547],[-128.66099548339844,43.748001098632812]],
+     [[-126.67299652099609,43.035999298095689],[-126.68399810791016,43.011001586914055],[-126.68900299072266,42.999999999999986],[-126.69499969482422,42.985000610351555],[-126.70600128173828,42.959999084472642],[-126.71700286865234,42.935001373291016],[-126.72899627685547,42.909000396728509],[-126.73999786376953,42.883998870849609],[-126.75099945068359,42.859001159667976],[-126.76200103759766,42.833000183105469],[-126.77300262451172,42.80799865722657],[-126.77700042724609,42.79999923706054],[-126.78399658203125,42.783000946044929],[-126.79499816894531,42.756999969482422],[-126.80599975585937,42.731998443603509],[-126.81700134277344,42.707000732421868],
+     [-126.8280029296875,42.680999755859382],[-126.83999633789063,42.655998229980469],[-126.85099792480469,42.631000518798828],[-126.86199951171875,42.604999542236335],[-126.86399841308594,42.599998474121094],[-126.87300109863281,42.58000183105468],[-126.88400268554687,42.555000305175781],[-126.89499664306641,42.528999328613288],[-126.90599822998047,42.504001617431626],[-126.91699981689453,42.47900009155272],[-126.92800140380859,42.452999114990213],[-126.93900299072266,42.428001403808594],[-126.95099639892578,42.40299987792968],[-126.95200347900391,42.400001525878892],[-126.96199798583984,42.377998352050781],[-126.97299957275391,42.352001190185533],
+     [-126.98400115966797,42.326999664306641],[-126.99500274658203,42.301998138427734],[-127.00599670410156,42.276000976562493],[-127.01699829101562,42.250999450683601],[-127.02799987792969,42.226001739501953],[-127.03900146484375,42.200000762939453],[-127.05000305175781,42.174999237060547],[-127.06199645996094,42.150001525878906],[-127.072998046875,42.124000549316406],[-127.08399963378906,42.098999023437486],[-127.09500122070312,42.074001312255852],[-127.10600280761719,42.048000335693359],[-127.11699676513672,42.022998809814446],[-127.12699890136719,42],[-127.12799835205078,41.998001098632805],[-127.13899993896484,41.972000122070313],
+     [-127.15000152587891,41.946998596191406],[-127.16100311279297,41.922000885009766],[-127.17299652099609,41.895999908447266],[-127.18399810791016,41.870998382568366],[-127.19499969482422,41.846000671386719],[-127.20600128173828,41.819999694824219],[-127.21499633789062,41.799999237060547],[-127.28167774175972,41.63504645876381],[-127.43599080535165,41.634943347434728],[-127.43800354003906,41.610000610351555],[-127.43900299072266,41.59999847412108],[-127.44000244140625,41.583999633789048],[-127.44100189208984,41.558998107910156],[-127.44300079345703,41.533000946044908],[-127.44499969482422,41.507999420166009],[-127.44699859619141,41.483001708984375],
+     [-127.447998046875,41.457000732421861],[-127.44999694824219,41.431999206542969],[-127.45200347900391,41.405998229980462],[-127.45200347900391,41.400001525878899],[-127.45400238037109,41.381000518798828],[-127.45500183105469,41.355998992919922],[-127.45700073242187,41.330001831054688],[-127.45899963378906,41.305000305175788],[-127.46099853515625,41.278999328613281],[-127.46199798583984,41.254001617431641],[-127.46399688720703,41.228000640869141],[-127.46600341796875,41.202999114990227],[-127.46600341796875,41.20000076293946],[-127.46800231933594,41.178001403808601],[-127.46900177001953,41.152000427246094],[-127.47100067138672,41.126998901367188],
+     [-127.47299957275391,41.101001739501967],[-127.47499847412109,41.076000213623047],[-127.47599792480469,41.050998687744141],[-127.47799682617187,41.025001525878899],[-127.48000335693359,41],[-127.48000335693359,41.00999832153321],[-127.48200225830078,40.9739990234375],[-127.48300170898438,40.949001312255852],[-127.48500061035156,40.923999786376946],[-127.48699951171875,40.897998809814453],[-127.48899841308594,40.873001098632798],[-127.48999786376953,40.847000122070313],[-127.49199676513672,40.821998596191399],[-127.49400329589844,40.79999923706054],[-127.49400329589844,40.797000885009744],[-127.49600219726562,40.770999908447266],[-127.49700164794922,40.745998382568359],
+     [-127.49900054931641,40.720001220703125],[-127.50099945068359,40.694999694824219],[-127.50299835205078,40.668998718261705],[-127.50399780273437,40.644001007080071],[-127.50599670410156,40.618999481201165],[-127.50700378417969,40.599998474121094],[-127.50800323486328,40.592998504638665],[-127.51000213623047,40.568000793457024],[-127.51100158691406,40.541999816894524],[-127.51300048828125,40.516998291015625],[-127.51499938964844,40.492000579833984],[-127.51699829101562,40.465999603271477],[-127.51799774169922,40.441001892089844],[-127.51999664306641,40.415000915527344],[-127.52100372314453,40.400001525878913],[-127.52200317382813,40.389999389648438]]
+     ]
+     }]
+    """
+    file_handle.write(line)	
+    line = ' }'
     file_handle.write(line)	
 
     # %%
