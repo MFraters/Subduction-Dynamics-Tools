@@ -859,8 +859,8 @@ for ca_i in range(len(coord_azimuth_list)):
     split_slab_depth_14 = 280
     split_slab_depth_13 = 680
     split_slab_depth_12 = 680
-    split_slab_depth_11 = 150
-    split_slab_depth_10 = 150
+    split_slab_depth_11 = 280
+    split_slab_depth_10 = 200
     split_slab_depth_9 = 150
     split_slab_depth_8 = 150
     split_slab_depth_7 = 150
@@ -871,7 +871,7 @@ for ca_i in range(len(coord_azimuth_list)):
     split_slab_depth_2 = 500
     split_slab_depth_1 = 500
     split_slab_depth_0 = 150
-    slab_extra_tip_length_northest = 600
+    slab_extra_tip_length_northest = 500
     slab_extra_tip_length_north = 300 # This is divided over the last three segments
     slab_extra_tip_length_center = 0 # This is divided over the last three segments
     slab_extra_tip_length_south = 0 # This is divided over the last three segments
