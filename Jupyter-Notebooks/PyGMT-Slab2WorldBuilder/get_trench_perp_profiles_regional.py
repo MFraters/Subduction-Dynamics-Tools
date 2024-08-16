@@ -871,8 +871,8 @@ for ca_i in range(len(coord_azimuth_list)):
     split_slab_depth_2 = 500
     split_slab_depth_1 = 500
     split_slab_depth_0 = 150
-    slab_extra_tip_length_northest = 500
-    slab_extra_tip_length_north = 300 # This is divided over the last three segments
+    slab_extra_tip_length_northest = 500 #0
+    slab_extra_tip_length_north = 300 #0 # This is divided over the last three segments
     slab_extra_tip_length_center = 0 # This is divided over the last three segments
     slab_extra_tip_length_south = 0 # This is divided over the last three segments
     slab_add_extra_length = False #controls whether to add extra length near the end of the slab. Does not influence the slab_extra_tip_length
@@ -895,6 +895,7 @@ for ca_i in range(len(coord_azimuth_list)):
 
     
     #print("ca_i = ", ca_i, ", split_slab_coord = ", split_slab_coord)
+    #slab_extra_tip_length = 0
     if ca_i > trench_initial_strain_composition_south_coord and ca_i < trench_initial_strain_composition_north_coord:
       print("Center")
       trench_initial_strain_composition = trench_initial_strain_composition_center
@@ -921,7 +922,7 @@ for ca_i in range(len(coord_azimuth_list)):
       slab_extra_tip_length = slab_extra_tip_length_south
       shallow_slab_tip_dip = True
 
-    print("trench_initial_strain_composition = ", trench_initial_strain_composition)
+    print("trench_initial_strain_composition = ", trench_initial_strain_composition, ", slab_extra_tip_length = " , slab_extra_tip_length)
     if ca_i == 0:
         ## write segements part first
         line = '     "segments":[\n'
